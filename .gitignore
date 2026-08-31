@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# ledger state is local, per-checkout
+*.db
+company/ledger.db
+
+# knowledge-pipeline inputs/outputs are local-only by default (see Part 10.5)
+/sources/
+/skills/

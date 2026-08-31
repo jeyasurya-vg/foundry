@@ -1,0 +1,15 @@
+[project]
+name = "foundry-shell"
+version = "0.1.0"
+description = "Foundry operations shell: ledger, scheduler, bridge, console, runners."
+requires-python = ">=3.9"
+
+[project.scripts]
+foundry-ledger = "shell.ledger.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"

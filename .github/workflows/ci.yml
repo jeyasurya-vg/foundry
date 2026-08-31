@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No OAuth/credential-store access in source (COMPLIANCE.md rule 1)
+        shell: bash
+        run: |
+          set -e
+          if grep -RInE '\.claude/credentials|~/\.claude(/|["'"'"']|$)|\.config/claude|keychain|Keychain|credential_process' \
+              --include='*.py' --include='*.sh' --include='*.js' --include='*.ts' \
+              shell/ plugin/ 2>/dev/null; then
+            echo "::error::Forbidden credential-store reference found in source. See COMPLIANCE.md rule 1."
+            exit 1
+          fi
+          echo "No forbidden credential-store references found in shell/ or plugin/."
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest
+      - run: pytest -q

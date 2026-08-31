@@ -1,0 +1,7 @@
+{
+  "name": "foundry",
+  "version": "0.1.0",
+  "description": "Foundry: a software company staffed by AI agents, running on official Claude Code.",
+  "author": "Foundry contributors",
+  "license": "MIT"
+}
