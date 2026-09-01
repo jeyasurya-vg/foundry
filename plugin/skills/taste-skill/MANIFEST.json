@@ -1,0 +1,20 @@
+{
+  "slug": "taste-skill",
+  "skill_name": "design-taste-frontend",
+  "origin": "vendored",
+  "source": {
+    "repo": "https://github.com/Leonxlnx/taste-skill",
+    "path": "skills/taste-skill/SKILL.md",
+    "commit": "ccbc15639c97057cbfcf32ecebc38ef716e4bb37",
+    "license": "MIT",
+    "license_copyright": "Copyright (c) 2026 Leonxlnx"
+  },
+  "vendored_at": "2026-09-01",
+  "review": {
+    "reviewed_by": "engineer (interactive session, human-directed)",
+    "content_scan": "grepped for injection/exfiltration/credential/shell-exec patterns - none found; content is legitimate frontend design guidance",
+    "scope_note": "The skill's own frontmatter and body explicitly scope it to landing pages, portfolios, and redesigns, and explicitly exclude dashboards, data tables, and multi-step product UI ('Not dashboards... Inappropriate for dashboards'). It does NOT apply to Mission Control (shell/console) or any other Foundry dashboard surface. Relevant only if Foundry or a Foundry-driven project ever builds a marketing/landing/portfolio page."
+  },
+  "distribution": "public",
+  "injection_findings": []
+}

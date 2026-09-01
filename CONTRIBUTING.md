@@ -69,12 +69,20 @@ rather than introducing a new testing style.
 
 ## Third-party code
 
-Nothing in this repo currently vendors or depends on unreviewed third-party skills or
-converters. If you're adding one (the addendum's `librarian`/`book-to-skill` integration is
-the known future case), it needs a source URL, a pinned commit, and a recorded permission
-surface before it's wired into anything an agent can load — see Part 6 of the blueprint
-(`foundry-blueprint.md`, kept at the repo's origin for reference) and `docs/ROADMAP.md`'s
-entry on why this hasn't been started yet.
+`plugin/skills/` vendors two reviewed third-party skills (`taste-skill`, `no-ai-slop`) — see
+`docs/SKILLS.md` for the inventory and each skill's own `MANIFEST.json` for its exact
+provenance. That's the bar every future addition clears before it's wired into anything an
+agent can load:
+
+1. A real source URL and a pinned commit (not "latest" — a specific SHA).
+2. A human actually reading the full content — not a summary of it — checking for injection,
+   credential-harvesting, or exfiltration patterns before it touches this repo.
+3. A `MANIFEST.json` recording the source, commit, license, and what was checked, next to the
+   vendored file.
+4. A stated reason it's relevant to what Foundry actually does — "it exists" is not a reason.
+
+The addendum's `librarian`/`book-to-skill` integration is the next known case and hasn't
+cleared this bar yet — see `docs/ROADMAP.md`.
 
 ## Commit and PR expectations
 

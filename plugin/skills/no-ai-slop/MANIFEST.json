@@ -1,0 +1,20 @@
+{
+  "slug": "no-ai-slop",
+  "skill_name": "no-ai-slop",
+  "origin": "vendored",
+  "source": {
+    "repo": "https://github.com/petergyang/no-ai-slop",
+    "path": "skills/no-ai-slop/SKILL.md, skills/no-ai-slop/eval.md",
+    "commit": "d30eddb9e04562234f2070b5ee63ca4649d9a05e",
+    "license": "MIT",
+    "license_copyright": "Copyright (c) 2026 Peter Yang"
+  },
+  "vendored_at": "2026-09-01",
+  "review": {
+    "reviewed_by": "engineer (interactive session, human-directed)",
+    "content_scan": "grepped for injection/exfiltration/credential/shell-exec patterns - none found; content is a prose-editing style guide, no executable code",
+    "scope_note": "General-purpose writing editor: cuts filler words, cliche patterns, and AI-sounding constructions while preserving voice. Broadly applicable across Foundry - most directly useful to the `docs` agent (READMEs, changelogs, retros) but usable by any agent producing prose for a human."
+  },
+  "distribution": "public",
+  "injection_findings": []
+}
