@@ -4,111 +4,297 @@
 <meta charset="utf-8">
 <title>Foundry — Mission Control</title>
 <style>
-  :root { color-scheme: light dark; }
-  body { font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem; background: #0d1117; color: #c9d1d9; }
-  h1 { font-size: 1.1rem; margin: 0 0 1rem; color: #58a6ff; }
-  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin: 1.5rem 0 0.5rem; }
-  nav { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
-  nav button { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.85rem; }
-  nav button.active { background: #1f6feb; border-color: #1f6feb; color: white; }
+  :root {
+    --bg: #0a0e14;
+    --panel: #10161f;
+    --panel-2: #141b26;
+    --border: #1f2937;
+    --border-soft: #182230;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --text-faint: #576273;
+    --accent: #2dd4bf;
+    --accent-dim: #134e4a;
+    --mono: ui-monospace, "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", Menlo, monospace;
+    --sans: -apple-system, "Segoe UI", system-ui, sans-serif;
+
+    --c-draft: #576273;      --c-draft-bg: #1a1f28;
+    --c-queued: #64748b;     --c-queued-bg: #161c26;
+    --c-claimed: #818cf8;    --c-claimed-bg: #1e1b3a;
+    --c-running: #f59e0b;    --c-running-bg: #2a1e08;
+    --c-checkpointed: #22d3ee; --c-checkpointed-bg: #0b2530;
+    --c-review: #a78bfa;     --c-review-bg: #221c38;
+    --c-blocked_quota: #fb923c; --c-blocked_quota-bg: #2a1a0a;
+    --c-rejected: #f87171;   --c-rejected-bg: #2a1414;
+    --c-failed: #ef4444;     --c-failed-bg: #2a1010;
+    --c-done: #34d399;       --c-done-bg: #0d2a1e;
+    --c-dead: #7f1d1d;       --c-dead-bg: #1a0f0f;
+
+    --c-proposed: #64748b;   --c-greenlit: #38bdf8;   --c-active: #f59e0b;
+    --c-shipped: #34d399;    --c-maintained: #2dd4bf; --c-shelved: #a78bfa;
+    --c-revived: #22d3ee;    --c-archived: #576273;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: var(--sans); margin: 0; background: var(--bg); color: var(--text);
+    font-size: 13px; display: flex; height: 100vh; overflow: hidden;
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* -- sidebar -- */
+  #sidebar {
+    width: 190px; flex-shrink: 0; background: var(--panel); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; padding: 14px 10px;
+  }
+  #sidebar .brand { display: flex; align-items: center; gap: 8px; padding: 4px 8px 16px; }
+  #sidebar .brand .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+  #sidebar .brand b { font-size: 13px; letter-spacing: 0.02em; }
+  #sidebar .brand small { display: block; color: var(--text-faint); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  nav { display: flex; flex-direction: column; gap: 2px; }
+  nav button {
+    all: unset; cursor: pointer; display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 6px; color: var(--text-dim); font-size: 12.5px; font-weight: 500;
+  }
+  nav button .ic { width: 16px; text-align: center; opacity: 0.8; font-size: 13px; }
+  nav button:hover { background: var(--panel-2); color: var(--text); }
+  nav button.active { background: var(--accent-dim); color: var(--accent); }
+  nav button.active .ic { opacity: 1; }
+
+  #sidebar .foot { margin-top: auto; padding: 8px; border-top: 1px solid var(--border-soft); }
+  #sidebar .foot .row { display: flex; align-items: center; gap: 6px; color: var(--text-faint); font-size: 10.5px; }
+  #sidebar .foot .row .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c-done); }
+
+  /* -- main -- */
+  #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #topbar {
+    height: 46px; flex-shrink: 0; border-bottom: 1px solid var(--border); display: flex;
+    align-items: center; justify-content: space-between; padding: 0 18px; background: var(--panel);
+  }
+  #topbar h1 { font-size: 13px; font-weight: 600; margin: 0; color: var(--text); }
+  #topbar .meta { color: var(--text-faint); font-family: var(--mono); font-size: 11px; }
+  #content { flex: 1; overflow-y: auto; padding: 18px 22px 40px; }
   section { display: none; }
   section.active { display: block; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
-  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.75rem; }
-  .card .n { font-size: 1.6rem; font-weight: 600; }
-  .card .k { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; }
-  .board { display: flex; gap: 0.75rem; overflow-x: auto; }
-  .column { min-width: 220px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.5rem; }
-  .column h3 { font-size: 0.8rem; margin: 0 0 0.5rem; color: #8b949e; }
-  .ticket { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 0.5rem; margin-bottom: 0.4rem; font-size: 0.8rem; }
-  .ticket .id { color: #58a6ff; font-family: monospace; font-size: 0.7rem; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid #30363d; }
-  th { color: #8b949e; font-weight: 500; }
-  pre { white-space: pre-wrap; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; font-size: 0.8rem; }
-  .empty { color: #8b949e; font-style: italic; font-size: 0.85rem; }
-  code { background: #161b22; padding: 0.1rem 0.3rem; border-radius: 4px; }
+
+  h2.sec {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-faint);
+    margin: 22px 0 8px; font-weight: 600;
+  }
+  h2.sec:first-child { margin-top: 0; }
+
+  /* -- stat tiles -- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--tint, var(--border));
+    border-radius: 4px; padding: 10px 12px;
+  }
+  .stat .n { font-family: var(--mono); font-size: 22px; font-weight: 600; line-height: 1.1; color: var(--tint, var(--text)); }
+  .stat .k { color: var(--text-dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; }
+  .empty { color: var(--text-faint); font-style: italic; font-size: 12px; padding: 6px 2px; }
+
+  /* -- usage cards -- */
+  .usage-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .usage-card { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; }
+  .usage-card .title { font-size: 11.5px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+  .usage-card .stub-tag { font-size: 9px; background: var(--c-draft-bg); color: var(--text-faint); padding: 1px 6px; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .usage-window { margin-top: 10px; }
+  .usage-window .row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-bottom: 3px; font-family: var(--mono); }
+  .bar-track { height: 6px; background: var(--panel-2); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; }
+  .usage-note { color: var(--text-faint); font-size: 10.5px; margin-top: 8px; line-height: 1.4; }
+
+  /* -- tables -- */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { text-align: left; padding: 6px 10px; color: var(--text-faint); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--border-soft); color: var(--text-dim); vertical-align: top; }
+  tbody tr:hover td { background: var(--panel-2); }
+  .id-badge { font-family: var(--mono); font-size: 11px; background: var(--panel-2); border: 1px solid var(--border); padding: 1px 5px; border-radius: 3px; color: var(--text); }
+  .mono { font-family: var(--mono); font-size: 11px; }
+  .pill { display: inline-block; padding: 1px 7px; border-radius: 3px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
+  /* -- kanban -- */
+  .board { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 8px; }
+  .column { min-width: 210px; max-width: 210px; flex-shrink: 0; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; }
+  .column .col-head {
+    padding: 8px 10px; border-bottom: 1px solid var(--border); border-top: 3px solid var(--tint);
+    border-radius: 5px 5px 0 0; display: flex; justify-content: space-between; align-items: center;
+  }
+  .column .col-head span.name { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--tint); }
+  .column .col-head span.count { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+  .column .cards { padding: 8px; display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+  .ticket {
+    background: var(--panel-2); border: 1px solid var(--border-soft); border-radius: 5px; padding: 8px 9px;
+  }
+  .ticket .id-badge { margin-bottom: 5px; }
+  .ticket .brief { font-size: 12px; color: var(--text); line-height: 1.35; }
+  .ticket .meta { margin-top: 6px; font-size: 10px; color: var(--text-faint); font-family: var(--mono); }
+
+  /* -- memory -- */
+  .doc-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 16px; }
+  .doc-panel .doc-head { padding: 7px 12px; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 11px; color: var(--text-faint); background: var(--panel-2); }
+  .doc-panel pre { margin: 0; padding: 14px; white-space: pre-wrap; font-family: var(--mono); font-size: 11.5px; line-height: 1.6; color: var(--text-dim); max-height: 420px; overflow-y: auto; }
+  .doc-panel pre .h { color: var(--accent); font-weight: 600; }
+
+  /* -- team -- */
+  .agent-tools { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); }
 </style>
 </head>
 <body>
-<h1>Foundry — Mission Control</h1>
-<nav>
-  <button data-tab="dashboard" class="active">Dashboard</button>
-  <button data-tab="board">Board</button>
-  <button data-tab="portfolio">Portfolio</button>
-  <button data-tab="team">Team</button>
-  <button data-tab="memory">Memory</button>
-</nav>
 
-<section id="dashboard" class="active">
-  <h2>Tickets by state</h2>
-  <div class="grid" id="tickets-by-state"></div>
-  <h2>Projects by state</h2>
-  <div class="grid" id="projects-by-state"></div>
-  <h2>Usage</h2>
-  <div class="grid" id="usage"></div>
-  <h2>Recent events</h2>
-  <table id="events"><thead><tr><th>Ticket</th><th>Event</th><th>When</th></tr></thead><tbody></tbody></table>
-</section>
+<div id="sidebar">
+  <div class="brand">
+    <div class="dot"></div>
+    <div><b>FOUNDRY</b><small>mission control</small></div>
+  </div>
+  <nav>
+    <button data-tab="dashboard" class="active"><span class="ic">&#9635;</span>Dashboard</button>
+    <button data-tab="board"><span class="ic">&#9638;</span>Board</button>
+    <button data-tab="portfolio"><span class="ic">&#9670;</span>Portfolio</button>
+    <button data-tab="team"><span class="ic">&#9737;</span>Team</button>
+    <button data-tab="memory"><span class="ic">&#9776;</span>Memory</button>
+  </nav>
+  <div class="foot">
+    <div class="row"><span class="live-dot"></span><span id="refresh-label">live</span></div>
+  </div>
+</div>
 
-<section id="board">
-  <h2>Ticket board</h2>
-  <div class="board" id="board-columns"></div>
-</section>
+<div id="main">
+  <div id="topbar">
+    <h1 id="page-title">Dashboard</h1>
+    <div class="meta" id="clock"></div>
+  </div>
+  <div id="content">
 
-<section id="portfolio">
-  <h2>Projects</h2>
-  <div class="board" id="portfolio-columns"></div>
-  <h2>Shelf</h2>
-  <table id="shelf"><thead><tr><th>Project</th><th>Reason</th><th>Revive when</th></tr></thead><tbody></tbody></table>
-</section>
+    <section id="dashboard" class="active">
+      <h2 class="sec">Tickets by state</h2>
+      <div class="stats" id="tickets-by-state"></div>
 
-<section id="team">
-  <h2>Departments</h2>
-  <div class="grid" id="team-cards"></div>
-</section>
+      <h2 class="sec">Projects by state</h2>
+      <div class="stats" id="projects-by-state"></div>
 
-<section id="memory">
-  <h2>company/MEMORY.md</h2>
-  <pre id="memory-content"></pre>
-  <h2>company/knowledge/INDEX.md</h2>
-  <pre id="knowledge-index"></pre>
-</section>
+      <h2 class="sec">Usage</h2>
+      <div class="usage-grid" id="usage"></div>
+
+      <h2 class="sec">Recent events</h2>
+      <table id="events"><thead><tr><th>Ticket</th><th>Event</th><th>When</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section id="board">
+      <h2 class="sec">Ticket board</h2>
+      <div class="board" id="board-columns"></div>
+    </section>
+
+    <section id="portfolio">
+      <h2 class="sec">Projects</h2>
+      <div class="board" id="portfolio-columns"></div>
+      <h2 class="sec">Shelf</h2>
+      <table id="shelf"><thead><tr><th>Project</th><th>Reason</th><th>Revive when</th></tr></thead><tbody></tbody></table>
+    </section>
+
+    <section id="team">
+      <h2 class="sec">Departments</h2>
+      <table id="team-table">
+        <thead><tr><th>Name</th><th>Description</th><th>Tools</th><th>File</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="memory">
+      <h2 class="sec">company/MEMORY.md</h2>
+      <div class="doc-panel"><div class="doc-head">MEMORY.md</div><pre id="memory-content"></pre></div>
+      <h2 class="sec">company/knowledge/INDEX.md</h2>
+      <div class="doc-panel"><div class="doc-head">knowledge/INDEX.md</div><pre id="knowledge-index"></pre></div>
+    </section>
+
+  </div>
+</div>
 
 <script>
 const TICKET_STATES = ["draft","queued","claimed","running","checkpointed","blocked_quota","review","rejected","failed","done","dead"];
 const PROJECT_STATES = ["proposed","greenlit","active","shipped","maintained","shelved","revived","archived","rejected"];
+const TITLES = { dashboard: "Dashboard", board: "Ticket Board", portfolio: "Portfolio", team: "Team", memory: "Memory" };
+
+function cssColor(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(`--c-${name}`).trim() || "#576273";
+}
 
 async function getJSON(url) {
   const res = await fetch(url);
   return res.json();
 }
 
-function statCard(label, value) {
-  return `<div class="card"><div class="n">${value}</div><div class="k">${label}</div></div>`;
+function timeAgo(iso) {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return `${Math.floor(diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function fmtDuration(seconds) {
+  if (seconds == null) return "?";
+  if (seconds <= 0) return "now";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+function statTile(label, value, colorVar) {
+  const tint = colorVar ? cssColor(colorVar) : null;
+  return `<div class="stat" style="${tint ? `--tint:${tint}` : ""}"><div class="n">${value}</div><div class="k">${label}</div></div>`;
+}
+
+function pill(state, colorVar) {
+  const color = cssColor(colorVar || state);
+  return `<span class="pill" style="color:${color};background:${color}22;border:1px solid ${color}55">${state}</span>`;
 }
 
 async function loadDashboard() {
   const d = await getJSON("/api/dashboard");
-  document.getElementById("tickets-by-state").innerHTML =
-    Object.entries(d.tickets_by_state).map(([k, v]) => statCard(k, v)).join("") || '<div class="empty">no tickets yet</div>';
-  document.getElementById("projects-by-state").innerHTML =
-    Object.entries(d.projects_by_state).map(([k, v]) => statCard(k, v)).join("") || '<div class="empty">no projects yet</div>';
 
-  const usageHtml = Object.entries(d.usage).map(([provider, info]) => {
+  document.getElementById("tickets-by-state").innerHTML =
+    TICKET_STATES.filter(s => d.tickets_by_state[s]).map(s => statTile(s, d.tickets_by_state[s], s)).join("")
+    || '<div class="empty">no tickets yet</div>';
+
+  document.getElementById("projects-by-state").innerHTML =
+    PROJECT_STATES.filter(s => d.projects_by_state[s]).map(s => statTile(s, d.projects_by_state[s], s)).join("")
+    || '<div class="empty">no projects yet</div>';
+
+  document.getElementById("usage").innerHTML = Object.entries(d.usage).map(([provider, info]) => {
     const windows = Object.entries(info.windows).map(([w, obs]) => {
-      if (!obs.observed) return `${w}: no data`;
-      const pct = obs.remaining != null ? Math.round(obs.remaining * 100) + "%" : "?";
-      return `${w}: ${pct} remaining`;
-    }).join(" · ");
-    return statCard(`${info.label}${info.status === "stub" ? " (stub)" : ""}`, windows || "—");
+      if (!obs.observed) {
+        return `<div class="usage-window"><div class="row"><span>${w}</span><span>no data</span></div><div class="bar-track"><div class="bar-fill" style="width:0%"></div></div></div>`;
+      }
+      const pct = Math.round((obs.remaining ?? 0) * 100);
+      const color = pct > 50 ? cssColor("done") : pct > 20 ? cssColor("running") : cssColor("failed");
+      const reset = obs.seconds_until_reset != null ? `resets ${fmtDuration(obs.seconds_until_reset)}` : "";
+      return `<div class="usage-window">
+        <div class="row"><span>${w}</span><span style="color:${color}">${pct}% &middot; ${reset}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div>
+      </div>`;
+    }).join("");
+    return `<div class="usage-card">
+      <div class="title"><span>${info.label}</span>${info.status === "stub" ? '<span class="stub-tag">stub</span>' : ""}</div>
+      ${windows}
+      ${info.note ? `<div class="usage-note">${info.note}</div>` : ""}
+    </div>`;
   }).join("");
-  document.getElementById("usage").innerHTML = usageHtml;
 
   const tbody = document.querySelector("#events tbody");
-  tbody.innerHTML = d.recent_events.map(e =>
-    `<tr><td><code>${e.ticket_id ?? "-"}</code></td><td>${e.kind}</td><td>${e.created_at}</td></tr>`
-  ).join("") || '<tr><td colspan="3" class="empty">no events yet</td></tr>';
+  tbody.innerHTML = d.recent_events.map(e => {
+    const isGood = /->(done|approved|shipped)/.test(e.kind);
+    const isBad = /->(dead|failed|rejected)/.test(e.kind);
+    const color = isGood ? cssColor("done") : isBad ? cssColor("failed") : "var(--text-dim)";
+    return `<tr>
+      <td><span class="id-badge">${e.ticket_id ?? "-"}</span></td>
+      <td style="color:${color}" class="mono">${e.kind}</td>
+      <td class="mono" title="${e.created_at}">${timeAgo(e.created_at)}</td>
+    </tr>`;
+  }).join("") || '<tr><td colspan="3" class="empty">no events yet</td></tr>';
 }
 
 async function loadBoard() {
@@ -117,8 +303,16 @@ async function loadBoard() {
   columns.innerHTML = TICKET_STATES.map(state => {
     const tickets = d.tickets.filter(t => t.state === state);
     if (tickets.length === 0) return "";
-    const cards = tickets.map(t => `<div class="ticket"><div class="id">${t.id}</div>${t.brief}</div>`).join("");
-    return `<div class="column"><h3>${state} (${tickets.length})</h3>${cards}</div>`;
+    const color = cssColor(state);
+    const cards = tickets.map(t => `<div class="ticket">
+      <span class="id-badge">${t.id}</span>
+      <div class="brief">${t.brief}</div>
+      <div class="meta">${t.project_id}${t.assignee ? " &middot; " + t.assignee : ""}</div>
+    </div>`).join("");
+    return `<div class="column" style="--tint:${color}">
+      <div class="col-head"><span class="name">${state}</span><span class="count">${tickets.length}</span></div>
+      <div class="cards">${cards}</div>
+    </div>`;
   }).join("") || '<div class="empty">no tickets yet</div>';
 }
 
@@ -128,8 +322,16 @@ async function loadPortfolio() {
   columns.innerHTML = PROJECT_STATES.map(state => {
     const projects = d.projects.filter(p => p.state === state);
     if (projects.length === 0) return "";
-    const cards = projects.map(p => `<div class="ticket"><div class="id">${p.id}</div>${p.name}<br><small>priority ${p.priority} · wip ${p.wip_limit}</small></div>`).join("");
-    return `<div class="column"><h3>${state} (${projects.length})</h3>${cards}</div>`;
+    const color = cssColor(state);
+    const cards = projects.map(p => `<div class="ticket">
+      <span class="id-badge">${p.id}</span>
+      <div class="brief">${p.name}</div>
+      <div class="meta">priority ${p.priority} &middot; wip ${p.wip_limit}</div>
+    </div>`).join("");
+    return `<div class="column" style="--tint:${color}">
+      <div class="col-head"><span class="name">${state}</span><span class="count">${projects.length}</span></div>
+      <div class="cards">${cards}</div>
+    </div>`;
   }).join("") || '<div class="empty">no projects yet</div>';
 
   const tbody = document.querySelector("#shelf tbody");
@@ -140,30 +342,65 @@ async function loadPortfolio() {
 
 async function loadTeam() {
   const d = await getJSON("/api/team");
-  document.getElementById("team-cards").innerHTML = d.agents.map(a =>
-    `<div class="card"><div class="k">${a.name}</div><div style="font-size:0.85rem;margin-top:0.3rem">${a.description}</div><div style="font-size:0.7rem;color:#8b949e;margin-top:0.4rem"><code>${a.tools}</code></div></div>`
-  ).join("") || '<div class="empty">no agents found</div>';
+  document.querySelector("#team-table tbody").innerHTML = d.agents.map(a =>
+    `<tr>
+      <td class="mono" style="color:var(--text)">${a.name}</td>
+      <td>${a.description}</td>
+      <td class="agent-tools">${a.tools}</td>
+      <td class="mono" style="color:var(--text-faint)">${a.file}</td>
+    </tr>`
+  ).join("") || '<tr><td colspan="4" class="empty">no agents found</td></tr>';
+}
+
+function highlightMarkdown(text) {
+  return text
+    .split("\n")
+    .map(line => line.match(/^#{1,6}\s/) ? `<span class="h">${line}</span>` : line)
+    .join("\n");
 }
 
 async function loadMemory() {
   const d = await getJSON("/api/memory");
-  document.getElementById("memory-content").textContent = d.memory ?? "(not found)";
-  document.getElementById("knowledge-index").textContent = d.knowledge_index ?? "(not found)";
+  document.getElementById("memory-content").innerHTML = d.memory ? highlightMarkdown(d.memory) : "(not found)";
+  document.getElementById("knowledge-index").innerHTML = d.knowledge_index ? highlightMarkdown(d.knowledge_index) : "(not found)";
 }
 
 const LOADERS = { dashboard: loadDashboard, board: loadBoard, portfolio: loadPortfolio, team: loadTeam, memory: loadMemory };
+let currentTab = "dashboard";
+
+function activateTab(tab) {
+  if (!LOADERS[tab]) tab = "dashboard";
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("active", s.id === tab));
+  currentTab = tab;
+  document.getElementById("page-title").textContent = TITLES[tab];
+  history.replaceState(null, "", `?tab=${tab}`);
+  LOADERS[tab]();
+}
 
 document.querySelectorAll("nav button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
-    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(btn.dataset.tab).classList.add("active");
-    LOADERS[btn.dataset.tab]();
-  });
+  btn.addEventListener("click", () => activateTab(btn.dataset.tab));
 });
 
-loadDashboard();
+activateTab(new URLSearchParams(location.search).get("tab") || "dashboard");
+
+function tickClock() {
+  document.getElementById("clock").textContent = new Date().toISOString().replace("T", " ").slice(0, 19) + " UTC";
+}
+tickClock();
+setInterval(tickClock, 1000);
+
+let lastRefresh = Date.now();
+function updateRefreshLabel() {
+  document.getElementById("refresh-label").textContent = `updated ${Math.max(0, Math.floor((Date.now() - lastRefresh) / 1000))}s ago`;
+}
+setInterval(updateRefreshLabel, 1000);
+
+function refresh() {
+  LOADERS[currentTab]();
+  lastRefresh = Date.now();
+}
+setInterval(refresh, 15000);
 </script>
 </body>
 </html>
