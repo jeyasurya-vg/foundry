@@ -4,6 +4,13 @@ Nine departments. Each is a subagent definition in `plugin/agents/` with a tool 
 definition of done, and a handoff contract. Roles are data, not code — add your own by
 dropping in a file and filing a hiring proposal (see below).
 
+**On tool fences:** Claude Code cannot technically restrict `Bash` to specific commands
+(`Bash(git *)`-style fencing) for a *plugin-shipped* agent — that syntax only takes effect for
+agents defined at the project or user level (`.claude/agents/`). The fences below past `Bash`
+are conventions each agent's own file states as a rule it follows, not a platform-enforced
+permission. If you want the fence technically enforced, copy the relevant agent file into your
+project's `.claude/agents/` and keep the fenced form there.
+
 | Agent | Owns | Tool fence |
 |---|---|---|
 | [`chief-of-staff`](../plugin/agents/chief-of-staff.md) | Sole human interface. Intake, clarification, status. Never builds. | Read, Write, Task |

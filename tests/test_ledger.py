@@ -117,6 +117,41 @@ def test_dependencies_gate_readiness(ledger):
     assert ready["id"] == tid
 
 
+def test_resumable_finds_orphaned_running_ticket(tmp_path):
+    db_path = tmp_path / "ledger.db"
+    ledger = Ledger(db_path)
+    tid = ledger.add_ticket(brief="x", done_when="y")
+    assert ledger.resumable() is None  # nothing running yet
+
+    ledger.claim(tid, "engineer")
+    ledger.start_running(tid, session_id="sess-dead")
+    ledger.checkpoint(tid, summary="step 1", artifacts=["a.py"], next_step="step 2")
+    ledger.resume_running(tid)  # back to `running`, as if mid-step-2 when the session died
+    ledger.close()  # simulates the session dying: nothing more is ever written for it
+
+    # a fresh Ledger() (new process/session) sees the same orphaned ticket
+    fresh = Ledger(db_path)
+    orphan = fresh.resumable()
+    assert orphan["id"] == tid
+    assert orphan["session_id"] == "sess-dead"
+    last = fresh.last_checkpoint(tid)
+    assert last["step_no"] == 1
+    assert last["next_step"] == "step 2"  # resumes from here, losing at most one step
+    fresh.close()
+
+
+def test_resumable_ignores_queued_and_done_tickets(ledger):
+    tid = ledger.add_ticket(brief="x", done_when="y")
+    assert ledger.resumable() is None  # queued, not running
+
+    ledger.claim(tid, "engineer")
+    ledger.start_running(tid)
+    ledger.checkpoint(tid, "s", [], "-")
+    ledger.advance_to_review(tid)
+    ledger.approve(tid)
+    assert ledger.resumable() is None  # done, not running
+
+
 def test_status_summary(ledger):
     ledger.add_ticket(brief="a", done_when="x")
     ledger.add_ticket(brief="b", done_when="x")
@@ -156,3 +191,21 @@ def test_cli_smoke(tmp_path):
     out = _run_cli(db_path, "status", tid)
     assert out.returncode == 0, out.stderr
     assert json.loads(out.stdout)["ticket"]["state"] == "review"
+
+
+def test_cli_resume_smoke(tmp_path):
+    db_path = tmp_path / "ledger.db"
+    _run_cli(db_path, "add", "--brief", "x", "--done-when", "y")
+
+    out = _run_cli(db_path, "resume")
+    assert out.returncode == 0, out.stderr
+    assert json.loads(out.stdout) == {"resumable": False}
+
+    out = _run_cli(db_path, "next")
+    tid = json.loads(out.stdout)["id"]
+
+    out = _run_cli(db_path, "resume")
+    assert out.returncode == 0, out.stderr
+    resumed = json.loads(out.stdout)
+    assert resumed["id"] == tid
+    assert resumed["state"] == "running"

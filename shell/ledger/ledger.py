@@ -208,6 +208,23 @@ class Ledger:
         ).fetchone()
         return dict(row) if row else None
 
+    def resumable(self, project_id=None):
+        """The most recently touched `running` ticket, if any.
+
+        A ticket sits in `running` between checkpoints. If the session driving it dies there
+        (killed mid-step, crashed, closed), the ticket is orphaned: `next_ready` will never
+        offer it again because it isn't `queued`. This is how a fresh session finds it and
+        picks the ticket back up from its last checkpoint, per docs/LEDGER.md Phase 3.
+        """
+        q = "SELECT id FROM tickets WHERE state = 'running'"
+        params = []
+        if project_id:
+            q += " AND project_id = ?"
+            params.append(project_id)
+        q += " ORDER BY updated_at DESC LIMIT 1"
+        row = self.conn.execute(q, params).fetchone()
+        return self.get_ticket(row[0]) if row else None
+
     def next_ready(self, project_id=None):
         q = "SELECT id FROM tickets WHERE state = 'queued'"
         params = []

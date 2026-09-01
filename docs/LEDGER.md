@@ -100,6 +100,7 @@ string tag with a `'default'` fallback.
 
 ```bash
 python -m shell.ledger.cli add --brief "..." --done-when "..." [--project P] [--depends-on ID ...]
+python -m shell.ledger.cli resume [--project P]
 python -m shell.ledger.cli next [--project P] [--assignee NAME]
 python -m shell.ledger.cli checkpoint <id> --summary "..." --artifacts '["a.py"]' --next-step "..." [--final] [--fail] [--blocked-until ISO8601]
 python -m shell.ledger.cli status [<id>] [--project P]
@@ -107,6 +108,10 @@ python -m shell.ledger.cli status [<id>] [--project P]
 
 - `add` creates a ticket in `draft` and immediately queues it (dependencies gate *claiming*,
   not queuing — see `next_ready` in `shell/ledger/ledger.py`).
+- `resume` looks for a ticket orphaned in `running` — one whose driving session died mid-step
+  without checkpointing — and returns it with its last checkpoint as a resume packet, without
+  re-claiming it. `/foundry:next` always checks this before claiming new work; it's the
+  Phase 3 gate ("kill a run mid-ticket; it resumes losing one step").
 - `next` finds the oldest `queued` ticket whose dependencies are all `done`, claims it, starts
   it running, and prints a resume packet (brief, `done_when`, last checkpoint, next step).
 - `checkpoint` records a checkpoint and either loops back to `running` (more work to do,
@@ -121,14 +126,25 @@ The full `Ledger` class (`shell/ledger/ledger.py`) also exposes `queue`, `claim`
 scheduler code and tests. `tests/test_ledger.py` walks a ticket through every state in the
 table above.
 
+## Checkpoint enforcement (Phase 3)
+
+`plugin/hooks/hooks.json` registers `plugin/hooks/checkpoint_gate.py` as a `PostToolUse` hook
+matched on `Edit|Write|Bash`. It can't stop a commit from happening (PostToolUse fires after
+the tool already ran), but the moment a `git commit` runs without a matching
+`shell.ledger.cli ... checkpoint` call, every subsequent tool call is blocked (exit code 2,
+stderr explains why) until one is made. See `tests/test_hooks.py` and docs/USAGE.md's sibling
+hook (`session_log.py`) for the session-boundary side of the same file.
+
 ## What's next (see the addendum's revised build order)
 
-- **Phase 1** (this phase): ledger schema, state machine, CLI — done.
-- **Phase 2**: plugin agents wired to `/foundry:next`, first ticket goes brief → PR in attended
-  mode.
-- **Phase 3**: checkpoint hook (`PostToolUse`) + resume packet wired into the actual Claude Code
-  session lifecycle.
-- **Phase 4**: `projects` table and lifecycle state machine (Part 11 of the addendum).
+- **Phase 1**: ledger schema, state machine, CLI — done.
+- **Phase 2**: plugin agents wired to `/foundry:next` (`plugin/commands/next.md`) — done. Not
+  yet exercised end-to-end against a real ticket ("brief → PR in attended mode" as the gate
+  requires) — that needs an actual session driving it, not just the wiring.
+- **Phase 3**: checkpoint hook + resume packet — done (`checkpoint_gate.py`, `Ledger.resumable`,
+  `session_log.py`). Same caveat: needs a real kill-mid-ticket run to fully exercise the gate,
+  not just unit tests simulating one.
+- **Phase 4**: `projects` table and lifecycle state machine — done. See `docs/PORTFOLIO.md`.
 - **Phase 5**: autonomous runner — quota detection (provider metadata → exit code → pattern
   list, in that order), pre-emptive pause at ~85% of window, capped exponential backoff.
 - **Phase 6**: Mission Control (reads the ledger and filesystem; no new backend).

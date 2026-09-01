@@ -11,6 +11,7 @@ import json
 import sys
 
 from .ledger import DEFAULT_DB_PATH, Ledger
+from .projects import Portfolio
 
 
 def _print(obj):
@@ -38,6 +39,15 @@ def cmd_next(ledger, args):
     ledger.claim(ticket["id"], assignee=args.assignee)
     ledger.start_running(ticket["id"])
     ticket = ledger.get_ticket(ticket["id"])
+    ticket["last_checkpoint"] = ledger.last_checkpoint(ticket["id"])
+    _print(ticket)
+
+
+def cmd_resume(ledger, args):
+    ticket = ledger.resumable(project_id=args.project)
+    if ticket is None:
+        _print({"resumable": False})
+        return
     ticket["last_checkpoint"] = ledger.last_checkpoint(ticket["id"])
     _print(ticket)
 
@@ -81,6 +91,56 @@ def cmd_status(ledger, args):
     })
 
 
+def cmd_project_add(portfolio, args):
+    project_id = portfolio.add_project(
+        project_id=args.id, name=args.name, brief=args.brief,
+        priority=args.priority, wip_limit=args.wip_limit, repo_path=args.repo_path,
+    )
+    _print(portfolio.get_project(project_id))
+
+
+def _project_transition(method_name, extra_args=()):
+    def handler(portfolio, args):
+        try:
+            method = getattr(portfolio, method_name)
+            kwargs = {name: getattr(args, name) for name in extra_args}
+            state = method(args.project_id, args.rationale, **kwargs)
+        except (KeyError, ValueError) as exc:
+            print(str(exc), file=sys.stderr)
+            sys.exit(1)
+        _print({"id": args.project_id, "state": state})
+    return handler
+
+
+def cmd_project_shelve(portfolio, args):
+    try:
+        state = portfolio.shelve(args.project_id, reason=args.reason, revive_when=args.revive_when)
+    except (KeyError, ValueError) as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    _print({"id": args.project_id, "state": state})
+
+
+def cmd_project_list(portfolio, args):
+    _print(portfolio.list_projects(state=args.state))
+
+
+def cmd_project_shelf(portfolio, args):
+    _print(portfolio.shelf())
+
+
+def cmd_project_status(portfolio, args):
+    project = portfolio.get_project(args.project_id)
+    if project is None:
+        print(f"no such project: {args.project_id}", file=sys.stderr)
+        sys.exit(1)
+    _print({
+        "project": project,
+        "events": portfolio.list_events(args.project_id),
+        "releases": portfolio.list_releases(args.project_id),
+    })
+
+
 def build_parser():
     parser = argparse.ArgumentParser(prog="foundry-ledger")
     parser.add_argument("--db", default=DEFAULT_DB_PATH, help="path to the ledger sqlite file")
@@ -101,6 +161,10 @@ def build_parser():
     p_next.add_argument("--assignee", default="engineer")
     p_next.set_defaults(func=cmd_next)
 
+    p_resume = sub.add_parser("resume", help="find a ticket orphaned mid-run (session died while it was `running`)")
+    p_resume.add_argument("--project")
+    p_resume.set_defaults(func=cmd_resume)
+
     p_ckpt = sub.add_parser("checkpoint", help="record a checkpoint / advance or pause a ticket")
     p_ckpt.add_argument("ticket_id")
     p_ckpt.add_argument("--summary")
@@ -114,7 +178,59 @@ def build_parser():
     p_status = sub.add_parser("status", help="show ticket or board status")
     p_status.add_argument("ticket_id", nargs="?")
     p_status.add_argument("--project")
-    p_status.set_defaults(func=cmd_status)
+    p_status.set_defaults(func=cmd_status, backend="ledger")
+
+    for p in (p_add, p_next, p_resume, p_ckpt, p_status):
+        p.set_defaults(backend="ledger")
+
+    p_project = sub.add_parser("project", help="portfolio: manage project lifecycle (addendum Part 11)")
+    proj_sub = p_project.add_subparsers(dest="project_command", required=True)
+
+    pp_add = proj_sub.add_parser("add", help="propose a new project")
+    pp_add.add_argument("--id", required=True)
+    pp_add.add_argument("--name", required=True)
+    pp_add.add_argument("--brief", required=True)
+    pp_add.add_argument("--priority", type=int, default=5)
+    pp_add.add_argument("--wip-limit", type=int, default=3)
+    pp_add.add_argument("--repo-path")
+    pp_add.set_defaults(func=cmd_project_add, backend="portfolio")
+
+    for name, method in (
+        ("greenlight", "greenlight"), ("reject", "reject"), ("start", "start"),
+        ("maintain", "maintain"), ("revive", "revive"), ("archive", "archive"),
+    ):
+        pp = proj_sub.add_parser(name, help=f"transition a project via `{method}`")
+        pp.add_argument("project_id")
+        pp.add_argument("--rationale", required=True)
+        pp.set_defaults(func=_project_transition(method), backend="portfolio")
+
+    pp_ship = proj_sub.add_parser("ship", help="active -> shipped, optionally recording a release")
+    pp_ship.add_argument("project_id")
+    pp_ship.add_argument("--rationale", required=True)
+    pp_ship.add_argument("--version")
+    pp_ship.add_argument("--tag")
+    pp_ship.add_argument("--changelog-path")
+    pp_ship.set_defaults(
+        func=_project_transition("ship", extra_args=("version", "tag", "changelog_path")),
+        backend="portfolio",
+    )
+
+    pp_shelve = proj_sub.add_parser("shelve", help="stop deliberately (reason + revival condition mandatory)")
+    pp_shelve.add_argument("project_id")
+    pp_shelve.add_argument("--reason", required=True)
+    pp_shelve.add_argument("--revive-when", required=True)
+    pp_shelve.set_defaults(func=cmd_project_shelve, backend="portfolio")
+
+    pp_list = proj_sub.add_parser("list", help="list projects, optionally filtered by state")
+    pp_list.add_argument("--state")
+    pp_list.set_defaults(func=cmd_project_list, backend="portfolio")
+
+    pp_shelf = proj_sub.add_parser("shelf", help="list every shelved project (for the periodic shelf review)")
+    pp_shelf.set_defaults(func=cmd_project_shelf, backend="portfolio")
+
+    pp_status = proj_sub.add_parser("status", help="one project's full history")
+    pp_status.add_argument("project_id")
+    pp_status.set_defaults(func=cmd_project_status, backend="portfolio")
 
     return parser
 
@@ -122,11 +238,11 @@ def build_parser():
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
-    ledger = Ledger(args.db)
+    obj = Portfolio(args.db) if args.backend == "portfolio" else Ledger(args.db)
     try:
-        args.func(ledger, args)
+        args.func(obj, args)
     finally:
-        ledger.close()
+        obj.close()
 
 
 if __name__ == "__main__":

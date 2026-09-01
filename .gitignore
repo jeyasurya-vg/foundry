@@ -5,9 +5,14 @@ venv/
 *.egg-info/
 .pytest_cache/
 
-# ledger state is local, per-checkout
+# ledger and usage-tracker state is local, per-checkout
 *.db
 company/ledger.db
+company/usage.db
+company/.hook_state/
+
+# raw L1 session logs are local, per-checkout (see Part 4)
+company/logs/*.md
 
 # knowledge-pipeline inputs/outputs are local-only by default (see Part 10.5)
 /sources/
