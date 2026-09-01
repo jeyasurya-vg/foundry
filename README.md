@@ -4,10 +4,12 @@ An open-source framework for running a software company staffed entirely by AI a
 product, architecture, engineering, QA, security, docs, release and ops. Agents pick up
 tickets, do the work, review each other, and ship. A human sits at the board level.
 
-Status: Phases 0-4 built — repo structure, compliance and charter docs, the ledger (schema,
+Status: Phases 0-6 built — repo structure, compliance and charter docs, the ledger (schema,
 state machine, CLI), `/foundry:next` wired to the plugin's agents with a checkpoint-enforcing
-hook, the portfolio (`projects` table and lifecycle), and a cross-provider usage tracker. See
-`docs/LEDGER.md` for the build order and what's still ahead (Phase 5+).
+hook, the portfolio (`projects` table and lifecycle), a cross-provider usage tracker, an
+autonomous runner + fair-share scheduler (API-key-gated, untested against a live key), and a
+Mission Control web console. See `docs/LEDGER.md` for the build order and what's still ahead
+(Phase 7+: messaging bridge, `librarian` knowledge pipeline, cross-project promotion).
 
 ## Layout
 
@@ -20,9 +22,13 @@ company/    Scaffolded company memory: charter, org chart, curated memory, knowl
 shell/      PLANE 2 (optional) — provider-agnostic ops shell.
             ledger/    ticket state machine + CLI, and the portfolio (project lifecycle).
             usage/     cross-provider quota tracker (Claude/Codex/Ollama) — see docs/USAGE.md.
-            scheduler/ bridge/ console/ runners/  not yet built (Phase 5+).
+            runners/   Runner interface; AnthropicAPIRunner (API-key-gated); stubs for
+                       Bedrock/Vertex/OpenAI/local — see docs/AUTONOMOUS.md.
+            scheduler/ fair-share portfolio scheduler, quota-aware tick loop.
+            console/   Mission Control web dashboard (loopback only) — see docs/CONSOLE.md.
+            bridge/    not yet built (Phase 7).
             Never touches OAuth credentials; API-key-first.
-docs/       LEDGER.md, PORTFOLIO.md, USAGE.md.
+docs/       LEDGER.md, PORTFOLIO.md, USAGE.md, AUTONOMOUS.md, CONSOLE.md.
 tests/      pytest suite for the ledger, portfolio, usage tracker, and plugin hooks.
 ```
 

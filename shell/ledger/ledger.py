@@ -241,6 +241,18 @@ class Ledger:
                 return self.get_ticket(ticket_id)
         return None
 
+    def recent_events(self, project_id=None, limit=50):
+        """Events across every ticket, newest first — the live event feed Mission Control's
+        Dashboard reads (Part 5.2)."""
+        q = "SELECT * FROM events"
+        params = []
+        if project_id:
+            q += " WHERE project_id = ?"
+            params.append(project_id)
+        q += " ORDER BY id DESC LIMIT ?"
+        params.append(limit)
+        return [dict(r) for r in self.conn.execute(q, params).fetchall()]
+
     def wip_count(self, project_id):
         """How many tickets in `project_id` are actively in flight — the number a project's
         `wip_limit` caps (Part 12.5)."""

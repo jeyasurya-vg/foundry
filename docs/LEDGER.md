@@ -148,5 +148,7 @@ hook (`session_log.py`) for the session-boundary side of the same file.
 - **Phase 5**: autonomous runner + fair-share portfolio scheduler — done, with two honest
   gaps: nothing runs `scheduler_tick` on a timer yet, and the pre-emptive 85%-of-window pause
   has no real consumption signal to read. See `docs/AUTONOMOUS.md`.
-- **Phase 6**: Mission Control (reads the ledger and filesystem; no new backend).
+- **Phase 6**: Mission Control — done for Dashboard/Board/Portfolio/Team/Memory. Calendar,
+  Skills, Settings and a dedicated Runs timeline aren't built — no real subsystem behind them
+  yet. See `docs/CONSOLE.md`.
 - **Phase 7+**: messaging bridge, `librarian` knowledge pipeline, cross-project promotion.

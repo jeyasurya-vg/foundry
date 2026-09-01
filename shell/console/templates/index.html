@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Foundry — Mission Control</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 1.5rem; background: #0d1117; color: #c9d1d9; }
+  h1 { font-size: 1.1rem; margin: 0 0 1rem; color: #58a6ff; }
+  h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8b949e; margin: 1.5rem 0 0.5rem; }
+  nav { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+  nav button { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 0.4rem 0.8rem; cursor: pointer; font-size: 0.85rem; }
+  nav button.active { background: #1f6feb; border-color: #1f6feb; color: white; }
+  section { display: none; }
+  section.active { display: block; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.75rem; }
+  .card .n { font-size: 1.6rem; font-weight: 600; }
+  .card .k { font-size: 0.75rem; color: #8b949e; text-transform: uppercase; }
+  .board { display: flex; gap: 0.75rem; overflow-x: auto; }
+  .column { min-width: 220px; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 0.5rem; }
+  .column h3 { font-size: 0.8rem; margin: 0 0 0.5rem; color: #8b949e; }
+  .ticket { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 0.5rem; margin-bottom: 0.4rem; font-size: 0.8rem; }
+  .ticket .id { color: #58a6ff; font-family: monospace; font-size: 0.7rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid #30363d; }
+  th { color: #8b949e; font-weight: 500; }
+  pre { white-space: pre-wrap; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; font-size: 0.8rem; }
+  .empty { color: #8b949e; font-style: italic; font-size: 0.85rem; }
+  code { background: #161b22; padding: 0.1rem 0.3rem; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>Foundry — Mission Control</h1>
+<nav>
+  <button data-tab="dashboard" class="active">Dashboard</button>
+  <button data-tab="board">Board</button>
+  <button data-tab="portfolio">Portfolio</button>
+  <button data-tab="team">Team</button>
+  <button data-tab="memory">Memory</button>
+</nav>
+
+<section id="dashboard" class="active">
+  <h2>Tickets by state</h2>
+  <div class="grid" id="tickets-by-state"></div>
+  <h2>Projects by state</h2>
+  <div class="grid" id="projects-by-state"></div>
+  <h2>Usage</h2>
+  <div class="grid" id="usage"></div>
+  <h2>Recent events</h2>
+  <table id="events"><thead><tr><th>Ticket</th><th>Event</th><th>When</th></tr></thead><tbody></tbody></table>
+</section>
+
+<section id="board">
+  <h2>Ticket board</h2>
+  <div class="board" id="board-columns"></div>
+</section>
+
+<section id="portfolio">
+  <h2>Projects</h2>
+  <div class="board" id="portfolio-columns"></div>
+  <h2>Shelf</h2>
+  <table id="shelf"><thead><tr><th>Project</th><th>Reason</th><th>Revive when</th></tr></thead><tbody></tbody></table>
+</section>
+
+<section id="team">
+  <h2>Departments</h2>
+  <div class="grid" id="team-cards"></div>
+</section>
+
+<section id="memory">
+  <h2>company/MEMORY.md</h2>
+  <pre id="memory-content"></pre>
+  <h2>company/knowledge/INDEX.md</h2>
+  <pre id="knowledge-index"></pre>
+</section>
+
+<script>
+const TICKET_STATES = ["draft","queued","claimed","running","checkpointed","blocked_quota","review","rejected","failed","done","dead"];
+const PROJECT_STATES = ["proposed","greenlit","active","shipped","maintained","shelved","revived","archived","rejected"];
+
+async function getJSON(url) {
+  const res = await fetch(url);
+  return res.json();
+}
+
+function statCard(label, value) {
+  return `<div class="card"><div class="n">${value}</div><div class="k">${label}</div></div>`;
+}
+
+async function loadDashboard() {
+  const d = await getJSON("/api/dashboard");
+  document.getElementById("tickets-by-state").innerHTML =
+    Object.entries(d.tickets_by_state).map(([k, v]) => statCard(k, v)).join("") || '<div class="empty">no tickets yet</div>';
+  document.getElementById("projects-by-state").innerHTML =
+    Object.entries(d.projects_by_state).map(([k, v]) => statCard(k, v)).join("") || '<div class="empty">no projects yet</div>';
+
+  const usageHtml = Object.entries(d.usage).map(([provider, info]) => {
+    const windows = Object.entries(info.windows).map(([w, obs]) => {
+      if (!obs.observed) return `${w}: no data`;
+      const pct = obs.remaining != null ? Math.round(obs.remaining * 100) + "%" : "?";
+      return `${w}: ${pct} remaining`;
+    }).join(" · ");
+    return statCard(`${info.label}${info.status === "stub" ? " (stub)" : ""}`, windows || "—");
+  }).join("");
+  document.getElementById("usage").innerHTML = usageHtml;
+
+  const tbody = document.querySelector("#events tbody");
+  tbody.innerHTML = d.recent_events.map(e =>
+    `<tr><td><code>${e.ticket_id ?? "-"}</code></td><td>${e.kind}</td><td>${e.created_at}</td></tr>`
+  ).join("") || '<tr><td colspan="3" class="empty">no events yet</td></tr>';
+}
+
+async function loadBoard() {
+  const d = await getJSON("/api/board");
+  const columns = document.getElementById("board-columns");
+  columns.innerHTML = TICKET_STATES.map(state => {
+    const tickets = d.tickets.filter(t => t.state === state);
+    if (tickets.length === 0) return "";
+    const cards = tickets.map(t => `<div class="ticket"><div class="id">${t.id}</div>${t.brief}</div>`).join("");
+    return `<div class="column"><h3>${state} (${tickets.length})</h3>${cards}</div>`;
+  }).join("") || '<div class="empty">no tickets yet</div>';
+}
+
+async function loadPortfolio() {
+  const d = await getJSON("/api/portfolio");
+  const columns = document.getElementById("portfolio-columns");
+  columns.innerHTML = PROJECT_STATES.map(state => {
+    const projects = d.projects.filter(p => p.state === state);
+    if (projects.length === 0) return "";
+    const cards = projects.map(p => `<div class="ticket"><div class="id">${p.id}</div>${p.name}<br><small>priority ${p.priority} · wip ${p.wip_limit}</small></div>`).join("");
+    return `<div class="column"><h3>${state} (${projects.length})</h3>${cards}</div>`;
+  }).join("") || '<div class="empty">no projects yet</div>';
+
+  const tbody = document.querySelector("#shelf tbody");
+  tbody.innerHTML = d.shelf.map(p =>
+    `<tr><td>${p.name}</td><td>${p.shelve_reason ?? ""}</td><td>${p.revive_when ?? ""}</td></tr>`
+  ).join("") || '<tr><td colspan="3" class="empty">shelf is empty</td></tr>';
+}
+
+async function loadTeam() {
+  const d = await getJSON("/api/team");
+  document.getElementById("team-cards").innerHTML = d.agents.map(a =>
+    `<div class="card"><div class="k">${a.name}</div><div style="font-size:0.85rem;margin-top:0.3rem">${a.description}</div><div style="font-size:0.7rem;color:#8b949e;margin-top:0.4rem"><code>${a.tools}</code></div></div>`
+  ).join("") || '<div class="empty">no agents found</div>';
+}
+
+async function loadMemory() {
+  const d = await getJSON("/api/memory");
+  document.getElementById("memory-content").textContent = d.memory ?? "(not found)";
+  document.getElementById("knowledge-index").textContent = d.knowledge_index ?? "(not found)";
+}
+
+const LOADERS = { dashboard: loadDashboard, board: loadBoard, portfolio: loadPortfolio, team: loadTeam, memory: loadMemory };
+
+document.querySelectorAll("nav button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById(btn.dataset.tab).classList.add("active");
+    LOADERS[btn.dataset.tab]();
+  });
+});
+
+loadDashboard();
+</script>
+</body>
+</html>
