@@ -29,6 +29,10 @@ TRANSITIONS = {
 
 MAX_ATTEMPTS = 3
 
+# States that count against a project's WIP limit (Part 12.5): anything actively in flight,
+# as opposed to not-yet-started (draft, queued) or finished (done, dead, rejected).
+IN_FLIGHT_STATES = {"claimed", "running", "checkpointed", "blocked_quota", "review"}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -236,6 +240,11 @@ class Ledger:
             if self._deps_satisfied(ticket_id):
                 return self.get_ticket(ticket_id)
         return None
+
+    def wip_count(self, project_id):
+        """How many tickets in `project_id` are actively in flight — the number a project's
+        `wip_limit` caps (Part 12.5)."""
+        return sum(1 for t in self.list_tickets(project_id=project_id) if t["state"] in IN_FLIGHT_STATES)
 
     def status_summary(self, project_id=None):
         q = "SELECT state, COUNT(*) as n FROM tickets"

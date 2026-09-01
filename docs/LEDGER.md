@@ -145,7 +145,8 @@ hook (`session_log.py`) for the session-boundary side of the same file.
   `session_log.py`). Same caveat: needs a real kill-mid-ticket run to fully exercise the gate,
   not just unit tests simulating one.
 - **Phase 4**: `projects` table and lifecycle state machine — done. See `docs/PORTFOLIO.md`.
-- **Phase 5**: autonomous runner — quota detection (provider metadata → exit code → pattern
-  list, in that order), pre-emptive pause at ~85% of window, capped exponential backoff.
+- **Phase 5**: autonomous runner + fair-share portfolio scheduler — done, with two honest
+  gaps: nothing runs `scheduler_tick` on a timer yet, and the pre-emptive 85%-of-window pause
+  has no real consumption signal to read. See `docs/AUTONOMOUS.md`.
 - **Phase 6**: Mission Control (reads the ledger and filesystem; no new backend).
 - **Phase 7+**: messaging bridge, `librarian` knowledge pipeline, cross-project promotion.
