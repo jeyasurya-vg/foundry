@@ -151,4 +151,9 @@ hook (`session_log.py`) for the session-boundary side of the same file.
 - **Phase 6**: Mission Control — done for Dashboard/Board/Portfolio/Team/Memory. Calendar,
   Skills, Settings and a dedicated Runs timeline aren't built — no real subsystem behind them
   yet. See `docs/CONSOLE.md`.
-- **Phase 7+**: messaging bridge, `librarian` knowledge pipeline, cross-project promotion.
+- **Phase 7+**: messaging bridge, `librarian` knowledge pipeline, cross-project promotion —
+  not started; each needs an external account/credential or a third-party-dependency decision
+  only a human can make. See `docs/ROADMAP.md`.
+- **Phase 9**: docs, examples, contribution guide — done (built out of order, ahead of
+  Phase 7-8, since those were blocked and this wasn't). See `docs/ROADMAP.md`,
+  `examples/quickstart.md`, `CONTRIBUTING.md`.

@@ -6,8 +6,9 @@ That keeps exactly one code path talking to Anthropic at all (the official clien
 this runner inherits Claude Code's own tool use, not a reimplementation of it.
 
 Compliance rule 2 (COMPLIANCE.md): refuses to start without an explicit API key. No fallback,
-no auto-detection — in particular, this never reads `~/.claude/` looking for a subscription
-session; that credential store is off limits by rule 1, unconditionally.
+no auto-detection — in particular, this never reads the official CLI's own config directory
+looking for a subscription session; that credential store is off limits by rule 1,
+unconditionally.
 
 Headless mode skips auto-discovery of CLAUDE.md, hooks and skills (Part 4 note), so the
 context this runner needs is injected explicitly via `--append-system-prompt`, kept to the

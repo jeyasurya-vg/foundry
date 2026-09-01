@@ -4,12 +4,15 @@ An open-source framework for running a software company staffed entirely by AI a
 product, architecture, engineering, QA, security, docs, release and ops. Agents pick up
 tickets, do the work, review each other, and ship. A human sits at the board level.
 
-Status: Phases 0-6 built — repo structure, compliance and charter docs, the ledger (schema,
-state machine, CLI), `/foundry:next` wired to the plugin's agents with a checkpoint-enforcing
-hook, the portfolio (`projects` table and lifecycle), a cross-provider usage tracker, an
-autonomous runner + fair-share scheduler (API-key-gated, untested against a live key), and a
-Mission Control web console. See `docs/LEDGER.md` for the build order and what's still ahead
-(Phase 7+: messaging bridge, `librarian` knowledge pipeline, cross-project promotion).
+Status: Phases 0-6 and 9 built — repo structure, compliance and charter docs, the ledger
+(schema, state machine, CLI), `/foundry:next` wired to the plugin's agents with a
+checkpoint-enforcing hook, the portfolio (`projects` table and lifecycle), a cross-provider
+usage tracker, an autonomous runner + fair-share scheduler (API-key-gated, untested against a
+live key), a Mission Control web console, and docs/examples/contribution guide. New here?
+Start with `examples/quickstart.md`. **What's not built and why:** `docs/ROADMAP.md` — Phase
+7+ (messaging bridge, `librarian` knowledge pipeline) needs an external account/credential or
+a third-party-dependency decision only a human can make, so it's stopped there rather than
+faked.
 
 ## Layout
 
@@ -28,13 +31,15 @@ shell/      PLANE 2 (optional) — provider-agnostic ops shell.
             console/   Mission Control web dashboard (loopback only) — see docs/CONSOLE.md.
             bridge/    not yet built (Phase 7).
             Never touches OAuth credentials; API-key-first.
-docs/       LEDGER.md, PORTFOLIO.md, USAGE.md, AUTONOMOUS.md, CONSOLE.md.
-tests/      pytest suite for the ledger, portfolio, usage tracker, and plugin hooks.
+docs/       LEDGER.md, PORTFOLIO.md, USAGE.md, AUTONOMOUS.md, CONSOLE.md, ROADMAP.md.
+examples/   quickstart.md + a runnable quickstart.py (tests/test_quickstart.py runs it).
+tests/      pytest suite for the ledger, portfolio, usage tracker, runners, scheduler,
+            console, and plugin hooks.
 ```
 
 Read `COMPLIANCE.md` first — it explains why the repo is split into two planes and what rules
 are non-negotiable. Then `company/CHARTER.md` and `company/ORG.md` for how the company itself
-operates.
+operates, and `CONTRIBUTING.md` if you're adding to it.
 
 ## The ledger (Phase 1)
 
@@ -63,9 +68,30 @@ Tracks Claude/Codex/Ollama session and weekly quota as a self-logged ledger, not
 poller — see `docs/USAGE.md` for why (short version: the only live numbers require reusing a
 subscription OAuth session token outside its client, which `COMPLIANCE.md` forbids).
 
+## Mission Control
+
+```
+python -m shell.console.cli          # http://127.0.0.1:8787, loopback only
+```
+
+Dashboard, ticket board, portfolio lifecycle, department roster, and memory — all read
+straight from the ledger/portfolio/filesystem, nothing new to configure. `docs/CONSOLE.md`.
+
 ## Attended vs. autonomous
 
 - **Attended** (default): you run official Claude Code; the ledger tracks tickets on disk.
   No model calls originate from `shell/`.
-- **Autonomous** (`shell/`, not yet built — see `docs/LEDGER.md` build order): requires an
-  explicit API key. Refuses to start without one.
+- **Autonomous** (`shell/runners`, `shell/scheduler`): requires an explicit
+  `ANTHROPIC_API_KEY`. Refuses to start without one — no fallback, no auto-detection. Built
+  and unit-tested; never invoked against a live key in this repo's own history (none is set).
+  `docs/AUTONOMOUS.md`.
+
+## Quickstart
+
+```
+python examples/quickstart.py
+```
+
+Runs the whole stack end to end against a scratch database: a project through its lifecycle,
+two dependent tickets through the state machine, a usage observation. Prose walkthrough with
+the same commands spelled out: `examples/quickstart.md`.
