@@ -14,17 +14,19 @@ Each phase links to the doc with the real detail.
 | 4 | `projects` table, portfolio lifecycle state machine, mandatory shelve reason | `docs/PORTFOLIO.md` |
 | 5 | Autonomous runner (API-key-gated), quota detection, backoff, fair-share scheduler | `docs/AUTONOMOUS.md` |
 | 6 | Mission Control (Dashboard/Board/Portfolio/Team/Memory) | `docs/CONSOLE.md` |
+| 7 | Messaging bridge (Telegram) — verified against a real bot and a real button tap | `docs/BRIDGE.md` |
 | — | Cross-provider usage tracker (Claude active, Codex/Ollama stubbed) | `docs/USAGE.md` |
-| 9 | Docs, examples, contribution guide (this pass) | `CONTRIBUTING.md`, `examples/` |
+| 9 | Docs, examples, contribution guide | `CONTRIBUTING.md`, `examples/` |
 
-86 tests as of this writing, all passing, run via `pytest -q` — including one
+109 tests as of this writing, all passing, run via `pytest -q` — including one
 (`test_quickstart.py`) that runs `examples/quickstart.py` end to end on every invocation, so
 the "stranger ships something in under an hour" gate stays actually true rather than aspirational.
 
 ## Not built, and why
 
-**Phase 7 — Messaging bridge (Telegram/Slack/Matrix/Discord).** Needs a provider decision and
-a real bot token/app credential — neither is something to guess at or fake. Not started.
+**Phase 7 — Slack/Matrix/Discord bridges.** Telegram is built and verified (`docs/BRIDGE.md`)
+— the other three would implement the same `Bridge` interface, but each needs its own
+provider decision and app credential. Not started.
 
 **Phase 7-8 — `librarian` / knowledge pipeline (addendum Part 10).** The blueprint wraps a
 specific third-party repo (`virgiliojr94/book-to-skill`) as the converter. Pulling in
@@ -53,6 +55,12 @@ started; revisit once a project has run through its pipeline for real and produc
 **Mission Control screens: Calendar, Skills, Settings, a dedicated Runs timeline.** See
 `docs/CONSOLE.md`'s own "screens not built" section — each is blocked on one of the items
 above (a scheduled-job system, the skill loader, a real config file, or just not yet prioritized).
+
+**Inside Phase 7 itself:** "Approve and remember" only records a flag today — it doesn't
+append to the requesting agent's tool fence, which is what would actually make the permission
+policy self-build from use (Part 5.1). Channel-per-stream routing and wiring the bridge into
+the ledger/scheduler's actual approval points (release-to-main, deletes) are also not done.
+See `docs/BRIDGE.md`'s "what's not built yet."
 
 **Two items flagged inside Phase 5/6 themselves, not deferred to a later phase:**
 - Nothing runs `scheduler_tick()` on a timer — it's a function you call, not a daemon.

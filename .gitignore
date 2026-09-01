@@ -17,3 +17,6 @@ company/logs/*.md
 # knowledge-pipeline inputs/outputs are local-only by default (see Part 10.5)
 /sources/
 /skills/
+
+# local secrets (bot tokens, etc.) - never committed, per COMPLIANCE.md rule 6
+.env
