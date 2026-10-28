@@ -3,7 +3,7 @@
 One canonical status page, instead of a "what's next" footnote scattered across five docs.
 Each phase links to the doc with the real detail.
 
-## Built (Phases 0-6, 9)
+## Built (Phases 0-9)
 
 | Phase | What | Doc |
 |---|---|---|
@@ -12,14 +12,15 @@ Each phase links to the doc with the real detail.
 | 2 | `/foundry:next`, plugin hooks wiring, agent dispatch by pipeline stage | `docs/LEDGER.md` |
 | 3 | Checkpoint-enforcing `PostToolUse` hook, orphan-ticket resume (`Ledger.resumable`) | `docs/LEDGER.md` |
 | 4 | `projects` table, portfolio lifecycle state machine, mandatory shelve reason | `docs/PORTFOLIO.md` |
-| 5 | Autonomous runner (API-key-gated), quota detection, backoff, fair-share scheduler | `docs/AUTONOMOUS.md` |
-| 6 | Mission Control (Dashboard/Board/Portfolio/Team/Memory) | `docs/CONSOLE.md` |
-| 7 | Messaging bridge (Telegram) — verified against a real bot and a real button tap | `docs/BRIDGE.md` |
+| 5 | Autonomous runner (API-key-gated), quota detection, backoff, fair-share scheduler, **a daemon loop around `scheduler_tick` (`shell/scheduler/cli.py`)** | `docs/AUTONOMOUS.md` |
+| 6 | Mission Control (Dashboard/Board/Portfolio/Team/**Runs**/**Skills**/Memory) | `docs/CONSOLE.md` |
+| 7 | Messaging bridge (Telegram) — verified against a real bot and a real button tap; **"approve and remember" appends to an agent's frontmatter fence, channel-per-stream routing, and `request-action` wiring real `Portfolio.ship`/`shelve`/`archive` approval points** | `docs/BRIDGE.md` |
+| 8 | Container profile for autonomous mode (`shell/runners/container/`) — no host mounts beyond the project directory itself | `docs/CONTAINER.md` |
 | — | Cross-provider usage tracker (Claude active, Codex/Ollama stubbed) | `docs/USAGE.md` |
 | 9 | Docs, examples, contribution guide | `CONTRIBUTING.md`, `examples/` |
-| — | Skill inventory (2 vendored skills, reviewed): `taste-skill`, `no-ai-slop` | `docs/SKILLS.md` |
+| — | Skill inventory (2 vendored skills, reviewed): `taste-skill`, `no-ai-slop`, **with an automated `content_sha256` integrity check** | `docs/SKILLS.md` |
 
-109 tests as of this writing, all passing, run via `pytest -q` — including one
+167 tests as of this writing, all passing, run via `pytest -q` — including one
 (`test_quickstart.py`) that runs `examples/quickstart.py` end to end on every invocation, so
 the "stranger ships something in under an hour" gate stays actually true rather than aspirational.
 
@@ -41,35 +42,26 @@ assert the agent ignores it" requires an actual live model call to verify — th
 API-key boundary the autonomous runner hit in Phase 5. Nothing to test it against yet
 (`librarian`, the component most exposed to untrusted input, doesn't exist). Not started.
 
-**Phase 8 — Skill inventory (partial).** `plugin/skills/` now holds two reviewed, vendored
-skills with manifests (`docs/SKILLS.md`) — a real start, not the full phase. Missing: a Mission
-Control screen to browse the inventory, and an automated periodic integrity re-check (currently
-"check by hand," fine at 2 entries, not at 20).
-
-**Phase 8 — Container profile for autonomous mode.** `AnthropicAPIRunner` shells out to the
-official `claude` CLI directly on the host; a documented container profile with no host mounts
-(Part 6) is real remaining work, distinct from the runner code itself. Not started.
-
 **Addendum Phase 9 — Cross-project promotion flow.** Promoting a retro/ADR from one project's
 knowledge into `knowledge/standards/` (Part 12.6) needs `company/knowledge/` to actually have
 content in it first — right now it's an empty scaffold (`INDEX.md` says so explicitly). Not
 started; revisit once a project has run through its pipeline for real and produced a retro.
 
-**Mission Control screens: Calendar, Skills, Settings, a dedicated Runs timeline.** See
-`docs/CONSOLE.md`'s own "screens not built" section — each is blocked on one of the items
-above (a scheduled-job system, the skill loader, a real config file, or just not yet prioritized).
+**Mission Control screens: Calendar, Settings.** See `docs/CONSOLE.md`'s own "screens not
+built" section — Calendar has no scheduled-job history to show even with the scheduler daemon
+running (ticks aren't individually tracked jobs); Settings has no config file yet to read and
+edit safely (fences/concurrency/budgets/backoff params still live as code constants).
 
-**Inside Phase 7 itself:** "Approve and remember" only records a flag today — it doesn't
-append to the requesting agent's tool fence, which is what would actually make the permission
-policy self-build from use (Part 5.1). Channel-per-stream routing and wiring the bridge into
-the ledger/scheduler's actual approval points (release-to-main, deletes) are also not done.
-See `docs/BRIDGE.md`'s "what's not built yet."
+**Inside Phase 7 itself:** calling `request-action` on an irreversible action is still a
+manual/explicit step, not something `shell/ledger`/`shell/scheduler` triggers on their own —
+see `docs/BRIDGE.md`'s "what's not built yet." And "approve and remember" can only ever be a
+human-reviewable note for a plugin-shipped agent, never a platform-enforced fence — that's a
+Claude Code platform limit (project-level `.claude/agents/*.md` is where real enforcement
+lives), not something this repo can route around.
 
-**Two items flagged inside Phase 5/6 themselves, not deferred to a later phase:**
-- Nothing runs `scheduler_tick()` on a timer — it's a function you call, not a daemon.
-- The pre-emptive 85%-of-window pause (Part 3.4) has no real per-runner consumption signal to
-  read yet; the usage tracker is self-logged and account-wide, not fed automatically to a
-  runner mid-run.
+**One item flagged inside Phase 5 itself, not deferred to a later phase:** the pre-emptive
+85%-of-window pause (Part 3.4) has no real per-runner consumption signal to read yet; the
+usage tracker is self-logged and account-wide, not fed automatically to a runner mid-run.
 
 ## Repos evaluated for inclusion and rejected
 
