@@ -22,22 +22,18 @@ Or via the installed entry point: `foundry-console`.
 | Board | `Ledger.list_tickets()`, kanban columns by state |
 | Portfolio | `Portfolio.list_projects()` (lifecycle board) + `Portfolio.shelf()` |
 | Team | `plugin/agents/*.md` frontmatter — name, description, tool fence |
+| Runs | `Ledger.recent_events()` (flat timeline) + per-ticket `list_events()`/`list_checkpoints()` on click-through |
+| Skills | `shell/skills/inventory.py` — every `plugin/skills/*/MANIFEST.json`, plus a live `content_sha256` integrity check against `SKILL.md` |
 | Memory | `company/MEMORY.md` and `company/knowledge/INDEX.md`, read whole |
 
 ## Screens from the blueprint not built here
 
-- **Calendar** (scheduled jobs) — there's no scheduled-job system yet; `shell/scheduler`
-  builds `scheduler_tick()` as a function you call, not a daemon with a job history (see
-  `docs/AUTONOMOUS.md`'s "what's not built yet"). Nothing to show.
-- **Skills** (inventory, permission surface, integrity checks) — Phase 8; there's no skill
-  loader yet.
+- **Calendar** (scheduled jobs) — there's still no scheduled-job system; `shell/scheduler`'s
+  daemon (`docs/AUTONOMOUS.md`) runs ticks on an interval, but there's no per-job history to
+  show on a calendar, just the same event feed Runs already surfaces. Nothing new to show.
 - **Settings** (fences, concurrency, budgets, provider config, backoff params) — most of these
   values live in code defaults today (`shell/runners/backoff.py`'s constants, `Runner`
   concurrency), not a config file a screen could read and let you edit safely.
-- **Runs** (per-ticket timeline: steps, checkpoints, quota pauses, resumes) — mostly covered
-  by Dashboard's event feed and Board today; a dedicated per-ticket timeline view combining
-  `list_checkpoints()` + `list_events()` (both already exist on `Ledger`) is a small addition
-  whenever it's wanted, not a new subsystem.
 
 Building a screen with no real data behind it would mean fabricating something to display —
 worse than not having the tab.
@@ -58,6 +54,9 @@ functions (testable without a server) and wired to HTTP in `shell/console/server
 - `GET /api/board[?project=<id>]`
 - `GET /api/portfolio`
 - `GET /api/team`
+- `GET /api/runs[?project=<id>]`
+- `GET /api/runs/detail?ticket=<id>`
+- `GET /api/skills`
 - `GET /api/memory`
 
 No authentication — this is a loopback-only local tool, the same trust boundary as running

@@ -9,6 +9,8 @@ files already on disk — nothing here writes anything.
 import re
 from pathlib import Path
 
+from ..skills import load_manifests
+
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
 
 
@@ -71,6 +73,29 @@ def build_board(ledger, project_id=None):
 
 def build_portfolio(portfolio):
     return {"projects": portfolio.list_projects(), "shelf": portfolio.shelf()}
+
+
+def build_skills(repo_root):
+    """The Skills screen: the vendored/generated skill inventory plus a live integrity check
+    against each one's recorded `content_sha256` (docs/SKILLS.md's former "check by hand")."""
+    return {"skills": load_manifests(repo_root)}
+
+
+def build_runs(ledger, project_id=None, limit=200):
+    """The Runs screen: a flat timeline of ledger events (state transitions) — steps,
+    checkpoints, quota pauses, resumes — across every ticket."""
+    return {"events": ledger.recent_events(project_id=project_id, limit=limit)}
+
+
+def build_run_detail(ledger, ticket_id):
+    """One ticket's full run history: its current row, every state-transition event, and
+    every checkpoint — the two primitives docs/CONSOLE.md names as already sufficient for a
+    per-ticket timeline, interleaved client-side by `created_at`."""
+    return {
+        "ticket": ledger.get_ticket(ticket_id),
+        "events": ledger.list_events(ticket_id),
+        "checkpoints": ledger.list_checkpoints(ticket_id),
+    }
 
 
 def _count_by(rows, key):

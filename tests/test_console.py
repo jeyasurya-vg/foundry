@@ -74,6 +74,44 @@ def test_build_board_filters_by_project(ledger):
     assert board["tickets"][0]["project_id"] == "p-1"
 
 
+def test_build_skills_lists_real_vendored_skills():
+    from pathlib import Path
+    repo_root = Path(__file__).resolve().parents[1]
+    result = api.build_skills(repo_root)
+    slugs = {s["slug"] for s in result["skills"]}
+    assert slugs == {"taste-skill", "no-ai-slop"}
+    assert all(s["integrity"]["ok"] for s in result["skills"])
+
+
+def test_build_skills_empty_when_no_skills_dir(tmp_path):
+    assert api.build_skills(tmp_path) == {"skills": []}
+
+
+def test_build_runs_returns_recent_events(ledger):
+    ledger.add_ticket(brief="a", done_when="x", project_id="p-1")
+    result = api.build_runs(ledger)
+    assert len(result["events"]) == 2  # created + auto-queue transition
+
+
+def test_build_runs_filters_by_project(ledger):
+    ledger.add_ticket(brief="a", done_when="x", project_id="p-1")
+    ledger.add_ticket(brief="b", done_when="x", project_id="p-2")
+    result = api.build_runs(ledger, project_id="p-1")
+    assert all(e["project_id"] == "p-1" for e in result["events"])
+
+
+def test_build_run_detail_combines_ticket_events_and_checkpoints(ledger):
+    ticket_id = ledger.add_ticket(brief="a", done_when="x")
+    ledger.claim(ticket_id, assignee="engineer")
+    ledger.start_running(ticket_id)
+    ledger.checkpoint(ticket_id, "did a thing", [], "do the next thing")
+
+    detail = api.build_run_detail(ledger, ticket_id)
+    assert detail["ticket"]["id"] == ticket_id
+    assert len(detail["events"]) >= 3
+    assert len(detail["checkpoints"]) == 1
+
+
 def test_build_portfolio_separates_shelf(portfolio):
     portfolio.add_project("p-1", name="A", brief="x")
     portfolio.add_project("p-2", name="B", brief="x")
@@ -132,6 +170,36 @@ def test_server_board_endpoint(running_server):
     status, payload = _get(running_server + "/api/board")
     assert status == 200
     assert len(payload["tickets"]) == 1
+
+
+def test_server_skills_endpoint(running_server):
+    # running_server's repo_root is a bare tmp_path (no plugin/skills/) — same treatment as
+    # the existing team/memory fixtures; see test_skills_inventory.py for the real-repo case.
+    status, payload = _get(running_server + "/api/skills")
+    assert status == 200
+    assert payload == {"skills": []}
+
+
+def test_server_runs_endpoint(running_server):
+    status, payload = _get(running_server + "/api/runs")
+    assert status == 200
+    assert len(payload["events"]) >= 1
+
+
+def test_server_runs_detail_endpoint(running_server):
+    _, board = _get(running_server + "/api/board")
+    ticket_id = board["tickets"][0]["id"]
+
+    status, payload = _get(running_server + f"/api/runs/detail?ticket={ticket_id}")
+    assert status == 200
+    assert payload["ticket"]["id"] == ticket_id
+    assert len(payload["events"]) >= 1
+
+
+def test_server_runs_detail_requires_ticket_param(running_server):
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        urllib.request.urlopen(running_server + "/api/runs/detail", timeout=5)
+    assert exc_info.value.code == 400
 
 
 def test_server_unknown_path_404s(running_server):

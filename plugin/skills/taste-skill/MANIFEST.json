@@ -16,5 +16,6 @@
     "scope_note": "The skill's own frontmatter and body explicitly scope it to landing pages, portfolios, and redesigns, and explicitly exclude dashboards, data tables, and multi-step product UI ('Not dashboards... Inappropriate for dashboards'). It does NOT apply to Mission Control (shell/console) or any other Foundry dashboard surface. Relevant only if Foundry or a Foundry-driven project ever builds a marketing/landing/portfolio page."
   },
   "distribution": "public",
-  "injection_findings": []
+  "injection_findings": [],
+  "content_sha256": "aa194351b246b8b4799099d4ed7b033d29eab6e6e3d58d8d2172978be7b3ec89"
 }

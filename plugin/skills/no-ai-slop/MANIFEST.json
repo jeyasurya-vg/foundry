@@ -16,5 +16,6 @@
     "scope_note": "General-purpose writing editor: cuts filler words, cliche patterns, and AI-sounding constructions while preserving voice. Broadly applicable across Foundry - most directly useful to the `docs` agent (READMEs, changelogs, retros) but usable by any agent producing prose for a human."
   },
   "distribution": "public",
-  "injection_findings": []
+  "injection_findings": [],
+  "content_sha256": "16719efd6dc6fe5978be7f6db41a474ca246970e5014acc057e29d7bfbd63b0e"
 }

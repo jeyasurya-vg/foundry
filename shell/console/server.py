@@ -38,6 +38,7 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
         project_id = query.get("project", [None])[0]
+        ticket_id = query.get("ticket", [None])[0]
 
         ledger = Ledger(self.server.ledger_db)
         portfolio = Portfolio(self.server.ledger_db)
@@ -55,6 +56,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(api.build_team(self.server.repo_root))
             elif parsed.path == "/api/memory":
                 self._json(api.build_memory(self.server.repo_root))
+            elif parsed.path == "/api/skills":
+                self._json(api.build_skills(self.server.repo_root))
+            elif parsed.path == "/api/runs":
+                self._json(api.build_runs(ledger, project_id=project_id))
+            elif parsed.path == "/api/runs/detail":
+                if not ticket_id:
+                    self._json({"error": "missing ?ticket="}, status=400)
+                else:
+                    self._json(api.build_run_detail(ledger, ticket_id))
             else:
                 self._json({"error": "not found"}, status=404)
         finally:

@@ -35,7 +35,10 @@ marketing or portfolio page instead.
 
 ## Integrity re-check
 
-Not automated yet — Part 8's "periodic integrity re-check" needs the skill inventory screen
-in Mission Control (not built, see `docs/CONSOLE.md`) or a standalone script diffing the
-vendored file against the source repo's current HEAD at the pinned commit. Two entries is
-small enough to check by hand for now; automate before this list grows much further.
+Automated now: each manifest records a `content_sha256` of its `SKILL.md` at vendor time, and
+`shell/skills/inventory.verify_integrity()` recomputes and compares it live — surfaced on
+Mission Control's Skills screen (`docs/CONSOLE.md`), and usable standalone via
+`shell.skills.inventory.load_manifests(repo_root)` without the console at all. This catches a
+`SKILL.md` edited after vendoring; it does not re-fetch the source repo's current HEAD at the
+pinned commit (that's a separate, heavier check — a network call against a third-party repo —
+not something to run automatically without a decision on cadence and failure handling).

@@ -141,6 +141,21 @@
 
   /* -- team -- */
   .agent-tools { font-family: var(--mono); font-size: 10.5px; color: var(--text-faint); }
+
+  /* -- runs -- */
+  .runs-layout { display: flex; gap: 14px; align-items: flex-start; }
+  .runs-layout .runs-list { flex: 1; min-width: 0; }
+  .runs-layout .run-detail { flex: 1; min-width: 0; }
+  tr.run-row { cursor: pointer; }
+  tr.run-row.selected td { background: var(--accent-dim); }
+  .timeline { display: flex; flex-direction: column; gap: 6px; }
+  .timeline .step {
+    background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--tint, var(--border));
+    border-radius: 4px; padding: 7px 10px; font-size: 11.5px;
+  }
+  .timeline .step .kind { color: var(--tint, var(--text)); font-family: var(--mono); font-weight: 600; }
+  .timeline .step .when { color: var(--text-faint); font-size: 10px; margin-left: 6px; }
+  .timeline .step .body { color: var(--text-dim); margin-top: 3px; white-space: pre-wrap; }
 </style>
 </head>
 <body>
@@ -155,6 +170,8 @@
     <button data-tab="board"><span class="ic">&#9638;</span>Board</button>
     <button data-tab="portfolio"><span class="ic">&#9670;</span>Portfolio</button>
     <button data-tab="team"><span class="ic">&#9737;</span>Team</button>
+    <button data-tab="runs"><span class="ic">&#9202;</span>Runs</button>
+    <button data-tab="skills"><span class="ic">&#9881;</span>Skills</button>
     <button data-tab="memory"><span class="ic">&#9776;</span>Memory</button>
   </nav>
   <div class="foot">
@@ -203,6 +220,30 @@
       </table>
     </section>
 
+    <section id="runs">
+      <h2 class="sec">Runs timeline</h2>
+      <div class="runs-layout">
+        <div class="runs-list">
+          <table id="runs-table">
+            <thead><tr><th>Ticket</th><th>Transition</th><th>When</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="run-detail">
+          <div id="run-detail-empty" class="empty">click a run to see its full timeline</div>
+          <div id="run-detail-content" class="timeline" style="display:none"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="skills">
+      <h2 class="sec">Skill inventory</h2>
+      <table id="skills-table">
+        <thead><tr><th>Slug</th><th>Origin</th><th>Source</th><th>Vendored</th><th>Reviewer</th><th>Integrity</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
     <section id="memory">
       <h2 class="sec">company/MEMORY.md</h2>
       <div class="doc-panel"><div class="doc-head">MEMORY.md</div><pre id="memory-content"></pre></div>
@@ -216,7 +257,10 @@
 <script>
 const TICKET_STATES = ["draft","queued","claimed","running","checkpointed","blocked_quota","review","rejected","failed","done","dead"];
 const PROJECT_STATES = ["proposed","greenlit","active","shipped","maintained","shelved","revived","archived","rejected"];
-const TITLES = { dashboard: "Dashboard", board: "Ticket Board", portfolio: "Portfolio", team: "Team", memory: "Memory" };
+const TITLES = {
+  dashboard: "Dashboard", board: "Ticket Board", portfolio: "Portfolio", team: "Team",
+  runs: "Runs", skills: "Skills", memory: "Memory",
+};
 
 function cssColor(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(`--c-${name}`).trim() || "#576273";
@@ -352,6 +396,71 @@ async function loadTeam() {
   ).join("") || '<tr><td colspan="4" class="empty">no agents found</td></tr>';
 }
 
+function eventColor(kind) {
+  if (/->(done|approved|shipped)/.test(kind)) return cssColor("done");
+  if (/->(dead|failed|rejected)/.test(kind)) return cssColor("failed");
+  if (/->blocked_quota/.test(kind)) return cssColor("blocked_quota");
+  return cssColor("running");
+}
+
+async function loadRuns() {
+  const d = await getJSON("/api/runs");
+  const tbody = document.querySelector("#runs-table tbody");
+  tbody.innerHTML = d.events.map(e => `
+    <tr class="run-row" data-ticket="${e.ticket_id ?? ""}">
+      <td><span class="id-badge">${e.ticket_id ?? "-"}</span></td>
+      <td class="mono" style="color:${eventColor(e.kind)}">${e.kind}</td>
+      <td class="mono" title="${e.created_at}">${timeAgo(e.created_at)}</td>
+    </tr>`
+  ).join("") || '<tr><td colspan="3" class="empty">no runs yet</td></tr>';
+
+  tbody.querySelectorAll("tr.run-row").forEach(row => {
+    row.addEventListener("click", () => {
+      if (!row.dataset.ticket) return;
+      tbody.querySelectorAll("tr.run-row").forEach(r => r.classList.toggle("selected", r === row));
+      loadRunDetail(row.dataset.ticket);
+    });
+  });
+}
+
+async function loadRunDetail(ticketId) {
+  const d = await getJSON(`/api/runs/detail?ticket=${encodeURIComponent(ticketId)}`);
+  const empty = document.getElementById("run-detail-empty");
+  const content = document.getElementById("run-detail-content");
+  empty.style.display = "none";
+  content.style.display = "flex";
+
+  const steps = [
+    ...d.events.map(e => ({ when: e.created_at, kind: e.kind, body: null })),
+    ...d.checkpoints.map(c => ({ when: c.created_at, kind: `checkpoint #${c.step_no}`, body: c.summary })),
+  ].sort((a, b) => new Date(a.when) - new Date(b.when));
+
+  content.innerHTML = steps.map(s => `
+    <div class="step" style="--tint:${eventColor(s.kind)}">
+      <span class="kind">${s.kind}</span><span class="when">${timeAgo(s.when)}</span>
+      ${s.body ? `<div class="body">${s.body}</div>` : ""}
+    </div>`
+  ).join("") || '<div class="empty">no history for this ticket yet</div>';
+}
+
+async function loadSkills() {
+  const d = await getJSON("/api/skills");
+  document.querySelector("#skills-table tbody").innerHTML = d.skills.map(s => {
+    const ok = s.integrity && s.integrity.ok;
+    const mark = ok
+      ? `<span style="color:${cssColor('done')}">&check; ok</span>`
+      : `<span style="color:${cssColor('failed')}" title="${s.integrity ? s.integrity.reason : ''}">&cross; ${s.integrity ? s.integrity.reason : 'unknown'}</span>`;
+    return `<tr>
+      <td class="mono" style="color:var(--text)">${s.slug}</td>
+      <td>${s.origin}</td>
+      <td class="mono" style="color:var(--text-faint)">${s.source ? s.source.repo : ""}</td>
+      <td class="mono">${s.vendored_at ?? ""}</td>
+      <td>${s.review ? s.review.reviewed_by : ""}</td>
+      <td>${mark}</td>
+    </tr>`;
+  }).join("") || '<tr><td colspan="6" class="empty">no skills vendored yet</td></tr>';
+}
+
 function highlightMarkdown(text) {
   return text
     .split("\n")
@@ -365,7 +474,10 @@ async function loadMemory() {
   document.getElementById("knowledge-index").innerHTML = d.knowledge_index ? highlightMarkdown(d.knowledge_index) : "(not found)";
 }
 
-const LOADERS = { dashboard: loadDashboard, board: loadBoard, portfolio: loadPortfolio, team: loadTeam, memory: loadMemory };
+const LOADERS = {
+  dashboard: loadDashboard, board: loadBoard, portfolio: loadPortfolio, team: loadTeam,
+  runs: loadRuns, skills: loadSkills, memory: loadMemory,
+};
 let currentTab = "dashboard";
 
 function activateTab(tab) {
