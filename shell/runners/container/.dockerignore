@@ -1,0 +1,8 @@
+.git
+**/__pycache__
+**/*.pyc
+company/*.db
+company/.backoff_state.json
+company/.scheduler.pid
+node_modules
+.pytest_cache

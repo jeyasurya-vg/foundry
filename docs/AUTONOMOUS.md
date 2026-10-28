@@ -30,6 +30,12 @@ information `/foundry:next` hands a department agent in attended mode.
   exist so the provider-agnostic architecture (compliance rule 8) is visible in code, not just
   asserted in prose — same pattern as `shell/usage/providers.py`'s Codex/Ollama stubs.
 
+## Container profile
+
+`AnthropicAPIRunner` shells out to the `claude` CLI directly on whatever host runs it by
+default. `shell/runners/container/` documents and builds a container profile with no host
+mounts beyond the project directory itself — see `docs/CONTAINER.md`.
+
 ## Quota detection (`shell/runners/quota.py`)
 
 Detection order, per Part 3.4: provider metadata (a dict with a `status` field, when the
@@ -72,11 +78,22 @@ work. If it doesn't, the ticket is left `running` — which is exactly the orpha
 is deliberate, not a gap: the failure mode "an agent didn't checkpoint" is the same whether a
 human or the autonomous runner was driving.
 
+## Scheduler daemon (`shell/scheduler/daemon.py`, `cli.py`)
+
+```
+python -m shell.scheduler.cli --runner anthropic-api --mode balanced --interval 60 \
+  [--db company/ledger.db] [--max-ticks N] [--pidfile company/.scheduler.pid]
+```
+
+`run_forever()` is the loop that was missing: it calls `scheduler_tick()` every `--interval`
+seconds until Ctrl+C/SIGTERM (or `--max-ticks` ticks, for a bounded manual/test run). `--runner`
+is required — no default, same "no auto-detection" posture as the runner itself. `--pidfile` is
+optional; written on start, removed on clean exit. `sleep`/`should_stop` on `run_forever()` are
+injectable, which is how `tests/test_scheduler_daemon.py` drives the loop deterministically
+without ever actually sleeping.
+
 ## What's not built yet
 
-- Nothing actually runs this on a timer. `scheduler_tick` is a function you call, not a daemon
-  — wiring a loop around it (a 60s sleep, signal handling, a pidfile) is a small remaining
-  piece, deliberately left out until there's a real autonomous deployment to run it against.
 - `window_consumed` has no real implementation — see above.
 - The pre-emptive pause at ~85% of window (Part 3.4) isn't wired in; it would live in
   `AnthropicAPIRunner.headroom()` once there's a real per-runner consumption signal to check
