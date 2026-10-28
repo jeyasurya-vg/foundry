@@ -3,10 +3,13 @@
 Irreversible actions arrive as inline buttons: Approve / Deny / Approve and remember. This
 store tracks the mechanical part — a request, its text, and its resolution — provider-
 agnostic (Telegram today, Slack/Matrix/Discord whenever those are built read and write the
-same table). What "Approve and remember" is supposed to eventually do — append to the
-requesting agent's tool fence so the permission policy builds itself from real use — is not
-implemented here; `remember` is recorded as a flag and nothing acts on it yet. See
-docs/BRIDGE.md's "what's not built yet."
+same table).
+
+Three optional fields (all default `None`, so a plain `request(text, ...)` behaves exactly
+as before): `agent` names which `plugin/agents/*.md` fence "Approve and remember" should
+append to (`shell/bridge/fence.py`); `action_kind`/`action_payload` describe a structured
+action (e.g. `"portfolio.ship"` + its kwargs as JSON) to apply automatically once the
+request resolves `approved` (`shell/bridge/actions.py`). See docs/BRIDGE.md.
 """
 
 import uuid
@@ -28,13 +31,15 @@ class ApprovalStore:
     def close(self):
         self.conn.close()
 
-    def request(self, text, ticket_id=None, project_id=None, request_id=None):
+    def request(self, text, ticket_id=None, project_id=None, request_id=None,
+                agent=None, action_kind=None, action_payload=None):
         request_id = request_id or uuid.uuid4().hex[:12]
         self.conn.execute(
             """INSERT INTO approvals
-               (request_id, text, ticket_id, project_id, status, remember, requested_at)
-               VALUES (?, ?, ?, ?, 'pending', 0, ?)""",
-            (request_id, text, ticket_id, project_id, _now()),
+               (request_id, text, ticket_id, project_id, status, remember, requested_at,
+                agent, action_kind, action_payload)
+               VALUES (?, ?, ?, ?, 'pending', 0, ?, ?, ?, ?)""",
+            (request_id, text, ticket_id, project_id, _now(), agent, action_kind, action_payload),
         )
         self.conn.commit()
         return request_id

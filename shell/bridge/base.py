@@ -32,10 +32,10 @@ class InboundCallback:
 class Bridge:
     name = "base"
 
-    def send(self, chat_id, text):
+    def send(self, chat_id, text, thread_id=None):
         raise NotImplementedError
 
-    def send_approval_request(self, chat_id, text, request_id):
+    def send_approval_request(self, chat_id, text, request_id, thread_id=None):
         raise NotImplementedError
 
     def poll(self, timeout=25):

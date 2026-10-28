@@ -1,0 +1,17 @@
+{
+  "default": {
+    "chat_id": "965676894"
+  },
+  "projects": {
+    "example-project": {
+      "chat_id": "-1001234567890",
+      "thread_id": 2
+    }
+  },
+  "departments": {
+    "security": {
+      "chat_id": "-1001234567890",
+      "thread_id": 7
+    }
+  }
+}

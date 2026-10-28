@@ -20,3 +20,6 @@ company/logs/*.md
 
 # local secrets (bot tokens, etc.) - never committed, per COMPLIANCE.md rule 6
 .env
+
+# bridge channel-routing config is local, per-operator (see company/bridge_channels.example.json)
+company/bridge_channels.json

@@ -51,10 +51,13 @@ class TelegramBridge(Bridge):
         with urllib.request.urlopen(req, timeout=30) as resp:
             return json.load(resp)
 
-    def send(self, chat_id, text):
-        return self._call("sendMessage", {"chat_id": chat_id, "text": text})
+    def send(self, chat_id, text, thread_id=None):
+        payload = {"chat_id": chat_id, "text": text}
+        if thread_id is not None:
+            payload["message_thread_id"] = thread_id
+        return self._call("sendMessage", payload)
 
-    def send_approval_request(self, chat_id, text, request_id):
+    def send_approval_request(self, chat_id, text, request_id, thread_id=None):
         keyboard = {
             "inline_keyboard": [[
                 {"text": "Approve", "callback_data": f"{request_id}:approved:0"},
@@ -62,7 +65,10 @@ class TelegramBridge(Bridge):
                 {"text": "Approve and remember", "callback_data": f"{request_id}:approved:1"},
             ]]
         }
-        return self._call("sendMessage", {"chat_id": chat_id, "text": text, "reply_markup": keyboard})
+        payload = {"chat_id": chat_id, "text": text, "reply_markup": keyboard}
+        if thread_id is not None:
+            payload["message_thread_id"] = thread_id
+        return self._call("sendMessage", payload)
 
     def answer_callback(self, callback_query_id, text=None):
         payload = {"callback_query_id": callback_query_id}

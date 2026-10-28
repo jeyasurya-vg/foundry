@@ -44,7 +44,9 @@ it, and why a real device test caught this rather than only a mocked one.
 ```bash
 python -m shell.bridge.cli --allow 965676894 send --chat-id 965676894 --text "hello"
 python -m shell.bridge.cli --allow 965676894 request-approval --chat-id 965676894 \
-  --text "push to main?" --ticket t-1
+  --text "push to main?" --ticket t-1 --agent release
+python -m shell.bridge.cli --allow 965676894 request-action --kind portfolio.ship \
+  --project p-1 --rationale "ready" --text "ship p-1 to main?" --chat-id 965676894
 python -m shell.bridge.cli --allow 965676894 poll --timeout 25
 python -m shell.bridge.cli list-pending
 ```
@@ -54,6 +56,35 @@ python -m shell.bridge.cli list-pending
 `TELEGRAM_BOT_TOKEN` — set as a real environment variable, or in a local `.env` file at the
 repo root (loaded by `shell/bridge/env.py`, a ~15-line stdlib-only loader — no `python-dotenv`
 dependency). `.env` is gitignored (compliance rule 6: secrets never committed).
+
+`--chat-id` can be replaced by `--project <id>` or `--department <name>` on `send`,
+`request-approval`, and `request-action` — resolved through `--channels` (default
+`company/bridge_channels.json`, gitignored; see `company/bridge_channels.example.json` for
+the shape). That's channel-per-stream routing: one project or department, one Telegram chat
+(and, once the operator's own supergroup has Topics enabled, one `thread_id`) instead of
+everything landing in a single operator chat.
+
+## Approval points: `request-action`
+
+`request-action --kind {portfolio.ship,portfolio.shelve,portfolio.archive}` is the actual
+wiring into the ledger/portfolio the earlier version of this doc said was still missing.
+Unlike `request-approval` (a free-text prompt a human has to act on separately),
+`request-action` records a structured `(kind, payload)` on the approval row; `poll` applies
+it automatically — calling the real `Portfolio.ship`/`shelve`/`archive` — the moment the
+request resolves `approved` (see `shell/bridge/actions.py`). A denied or still-pending
+request never touches the portfolio. `Portfolio.ship`/`shelve`/`archive` stay directly
+callable exactly as before; this is an additional gated path, not a replacement.
+
+## "Approve and remember"
+
+`--agent <name>` on `request-approval`/`request-action` names which agent's fence the
+"remember" button should update. On `poll`, a resolved `approved, remember=True` request
+with an `agent` set calls `shell/bridge/fence.remember()`, which appends the request's text
+to that agent's frontmatter `remembered:` list (`.claude/agents/<name>.md` if a
+project-level copy exists — where Claude Code actually enforces a `Bash(...)`-qualified
+fence — else the plugin-shipped `plugin/agents/<name>.md`, where it's a human-reviewable
+note, same honesty as every agent file's own caveat that plugin-level `tools:` can't be
+fenced to specific commands). Idempotent: the same note recorded twice doesn't duplicate.
 
 ## Local machine SSL note
 
@@ -66,17 +97,20 @@ diagnostic path; the bridge's own HTTP layer is a single small method
 
 ## What's not built yet
 
-- **"Approve and remember" doesn't do anything yet beyond recording the flag.** Part 5.1's
-  intent — appending the approval to the requesting agent's tool fence so the permission
-  policy builds itself from real use — needs a way to safely mutate `plugin/agents/*.md`
-  frontmatter, which doesn't exist. `ApprovalStore.list_remembered()` is there for whenever
-  that's built; nothing reads it automatically today.
-- **Channel-per-stream** (Part 5.1: one thread/topic per project or department) — the current
-  CLI is single-chat, single-operator. Multi-chat routing (mapping a project or department to
-  its own Telegram topic) isn't built.
-- **No wiring into the ledger or scheduler yet.** Nothing calls `request-approval`
-  automatically when an agent hits an irreversible action, or notifies on ticket state
-  changes. The bridge is a working, verified primitive; hooking it into the pipeline's actual
-  approval points (release-to-main, deletes, deploys) is the next slice.
+- **Still manual, not automatic.** `request-action` has to be invoked explicitly by whatever
+  is driving a ticket/project forward (a human, or a dispatched agent via `Bash`) — nothing
+  in `shell/ledger`/`shell/scheduler` calls it on its own when a ticket reaches a release or
+  delete point. The approval points exist and apply themselves once approved; deciding *when*
+  to call them is still the caller's job.
+- **"Approve and remember" doesn't feed back into platform-enforced permissions** for a
+  plugin-shipped agent — it can't; Claude Code only enforces a `Bash(...)`-qualified fence
+  for a project-level `.claude/agents/*.md` copy, not a plugin one. `fence.remember()`
+  targets that project-level copy first when it exists, so the enforcement gap is the
+  platform's, not this code's.
+- **No notifications on plain ticket state changes** (e.g. "ticket t-1 just failed") — the
+  bridge only ever speaks when something calls `send`/`request-approval`/`request-action`
+  explicitly.
 - **Slack, Matrix, Discord** — not started. `Bridge`/`InboundMessage`/`InboundCallback` in
-  `shell/bridge/base.py` are the interface any of them would implement.
+  `shell/bridge/base.py` are the interface any of them would implement; `thread_id` on
+  `send`/`send_approval_request` is Telegram-specific today (maps to `message_thread_id`) —
+  another provider would need its own equivalent, if it has one.

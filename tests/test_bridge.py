@@ -99,6 +99,25 @@ def test_list_pending_excludes_resolved(store):
     assert [r["request_id"] for r in store.list_pending()] == [b]
 
 
+def test_request_stores_optional_agent_and_action_fields(store):
+    rid = store.request(
+        "ship it?", project_id="p-1", agent="engineer",
+        action_kind="portfolio.ship", action_payload='{"rationale": "go"}',
+    )
+    row = store.get(rid)
+    assert row["agent"] == "engineer"
+    assert row["action_kind"] == "portfolio.ship"
+    assert row["action_payload"] == '{"rationale": "go"}'
+
+
+def test_request_without_optional_fields_leaves_them_null(store):
+    rid = store.request("x")
+    row = store.get(rid)
+    assert row["agent"] is None
+    assert row["action_kind"] is None
+    assert row["action_payload"] is None
+
+
 def test_list_remembered(store):
     a = store.request("a")
     store.request("b")
@@ -151,6 +170,30 @@ def test_telegram_bridge_approval_request_includes_three_buttons(monkeypatch):
     assert labels == ["Approve", "Deny", "Approve and remember"]
     assert buttons[0]["callback_data"] == "req-1:approved:0"
     assert buttons[2]["callback_data"] == "req-1:approved:1"
+
+
+def test_telegram_bridge_send_without_thread_id_omits_it(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    captured = {}
+    bridge = TelegramBridge(allowlist=["1"], request_fn=lambda url, p: captured.update(payload=p) or {})
+    bridge.send("1", "hello")
+    assert "message_thread_id" not in captured["payload"]
+
+
+def test_telegram_bridge_send_with_thread_id(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    captured = {}
+    bridge = TelegramBridge(allowlist=["1"], request_fn=lambda url, p: captured.update(payload=p) or {})
+    bridge.send("1", "hello", thread_id=7)
+    assert captured["payload"]["message_thread_id"] == 7
+
+
+def test_telegram_bridge_approval_request_with_thread_id(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "test-token")
+    captured = {}
+    bridge = TelegramBridge(allowlist=["1"], request_fn=lambda url, p: captured.update(payload=p) or {})
+    bridge.send_approval_request("1", "push to main?", "req-1", thread_id=7)
+    assert captured["payload"]["message_thread_id"] == 7
 
 
 def test_telegram_bridge_poll_parses_message(monkeypatch):

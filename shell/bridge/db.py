@@ -19,7 +19,26 @@ CREATE TABLE IF NOT EXISTS approvals (
 CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status);
 """
 
+# Columns added after the original schema above. Each is appended with a plain `ALTER TABLE`,
+# guarded against "duplicate column" so this stays idempotent against an existing local
+# `company/bridge.db` from before these fields existed — same no-ORM-migration style as the
+# rest of this codebase (there's no migration framework anywhere in `shell/`).
+ADDED_COLUMNS = [
+    ("agent", "TEXT"),            # which plugin/agent's fence "approve and remember" updates
+    ("action_kind", "TEXT"),      # e.g. "portfolio.ship" - what to apply once approved
+    ("action_payload", "TEXT"),   # JSON kwargs for that action
+]
+
 DEFAULT_DB_PATH = "company/bridge.db"
+
+
+def _apply_column_migrations(conn):
+    for name, sql_type in ADDED_COLUMNS:
+        try:
+            conn.execute(f"ALTER TABLE approvals ADD COLUMN {name} {sql_type}")
+        except sqlite3.OperationalError as exc:
+            if "duplicate column" not in str(exc).lower():
+                raise
 
 
 def connect(db_path=DEFAULT_DB_PATH) -> sqlite3.Connection:
@@ -29,5 +48,6 @@ def connect(db_path=DEFAULT_DB_PATH) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA_SQL)
+    _apply_column_migrations(conn)
     conn.commit()
     return conn
